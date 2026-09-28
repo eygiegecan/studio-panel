@@ -13,16 +13,17 @@ import {
   Trash2, 
   Edit3, 
   KeyRound,
-  UserCheck
+  CheckCircle2,
+  CalendarDays
 } from 'lucide-react';
 
 const ARTISTS_LIST = [
-  { id: 'admin', name: 'Dükkan Sahibi', username: 'bosside', password: 'nautilus081025', role: 'admin', color: '#f59e0b', commission_rate: 0 },
+  { id: 'admin', name: 'Dükkan Sahibi', username: 'bosside', password: 'nautilus081025', role: 'admin', color: '#e6edf3', commission_rate: 0 },
   { id: 'art1', name: 'Ege Can', username: 'egecan', password: 'egecan123', role: 'artist', color: '#10b981', commission_rate: 50 },
-  { id: 'art2', name: 'Yasin', username: 'yasin', password: 'yasin123', role: 'artist', color: '#6366f1', commission_rate: 30 },
-  { id: 'art3', name: 'Asil', username: 'asil', password: 'asil123', role: 'artist', color: '#ec4899', commission_rate: 50 },
-  { id: 'art4', name: 'Yeşim', username: 'yesim', password: 'yesim123', role: 'artist', color: '#8b5cf6', commission_rate: 30 },
-  { id: 'art5', name: 'Oğuz', username: 'oguz', password: 'oguz123', role: 'artist', color: '#06b6d4', commission_rate: 50 }
+  { id: 'art2', name: 'Yasin', username: 'yasin', password: 'yasin123', role: 'artist', color: '#60a5fa', commission_rate: 30 },
+  { id: 'art3', name: 'Asil', username: 'asil', password: 'asil123', role: 'artist', color: '#f43f5e', commission_rate: 50 },
+  { id: 'art4', name: 'Yeşim', username: 'yesim', password: 'yesim123', role: 'artist', color: '#a78bfa', commission_rate: 30 },
+  { id: 'art5', name: 'Oğuz', username: 'oguz', password: 'oguz123', role: 'artist', color: '#2dd4bf', commission_rate: 50 }
 ];
 
 const INITIAL_APPOINTMENTS = [
@@ -37,10 +38,12 @@ const MONTH_NAMES = [
   "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"
 ];
 
+const DAY_NAMES_SHORT = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+
 export default function App() {
   const [artists, setArtists] = useState(ARTISTS_LIST);
   const [appointments, setAppointments] = useState(() => {
-    const saved = localStorage.getItem('nautilus_appointments_v4');
+    const saved = localStorage.getItem('nautilus_appointments_v5');
     return saved ? JSON.parse(saved) : INITIAL_APPOINTMENTS;
   });
 
@@ -79,7 +82,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('nautilus_appointments_v4', JSON.stringify(appointments));
+    localStorage.setItem('nautilus_appointments_v5', JSON.stringify(appointments));
   }, [appointments]);
 
   const selectUserDirectly = (user) => {
@@ -91,7 +94,6 @@ export default function App() {
     e.preventDefault();
     setLoginError('');
     const cleanUser = usernameInput.trim().toLowerCase();
-
     const user = artists.find(a => a.username.toLowerCase() === cleanUser && a.password === passwordInput);
     if (user) {
       selectUserDirectly(user);
@@ -188,7 +190,6 @@ export default function App() {
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const isSuperAdmin = currentUser?.role === 'admin';
@@ -208,20 +209,22 @@ export default function App() {
     return acc + (Number(a.price || 0) * (rate / 100));
   }, 0);
 
+  // Günün randevuları
+  const dayAppointments = filteredAppointments.filter(a => a.date === selectedCalendarDate);
+
   if (!currentUser) {
     return (
-      <div style={{ backgroundColor: '#090d16', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'system-ui, sans-serif' }}>
-        <div style={{ width: '100%', maxWidth: '400px', backgroundColor: '#11192e', border: '1px solid #1e293b', borderRadius: '24px', padding: '28px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+      <div style={{ backgroundColor: '#0d1117', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+        <div style={{ width: '100%', maxWidth: '390px', backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: '24px', padding: '28px', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '16px', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', marginBottom: '10px' }}>
-              <CalendarIcon size={30} />
+            <div style={{ display: 'inline-flex', padding: '14px', borderRadius: '18px', backgroundColor: '#21262d', color: '#f0f6fc', border: '1px solid #30363d', marginBottom: '12px' }}>
+              <CalendarIcon size={28} />
             </div>
-            <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#ffffff', margin: 0 }}>Studio Portal</h1>
-            <p style={{ color: '#94a3b8', fontSize: '12px', marginTop: '4px' }}>Hızlı giriş yapmak için profilinize tıklayın:</p>
+            <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#f0f6fc', margin: 0, letterSpacing: '-0.3px' }}>Studio Portal</h1>
+            <p style={{ color: '#8b949e', fontSize: '13px', marginTop: '6px' }}>Giriş yapmak için profilinizi seçin:</p>
           </div>
 
-          {/* TEK TIKLA GİRİŞ BUTONLARI */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '22px' }}>
             {artists.map(art => (
               <button
                 key={art.id}
@@ -230,80 +233,79 @@ export default function App() {
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'space-between',
-                  padding: '12px 14px', 
-                  borderRadius: '12px', 
-                  backgroundColor: art.role === 'admin' ? '#1e293b' : '#0e1628', 
-                  border: art.role === 'admin' ? '1px solid #f59e0b' : '1px solid #1e293b', 
-                  color: '#fff', 
-                  cursor: 'pointer',
-                  textAlign: 'left'
+                  padding: '13px 16px', 
+                  borderRadius: '14px', 
+                  backgroundColor: art.role === 'admin' ? '#21262d' : '#161b22', 
+                  border: art.role === 'admin' ? '1px solid #f0f6fc' : '1px solid #30363d', 
+                  color: '#f0f6fc', 
+                  cursor: 'pointer'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: art.color }}></span>
-                  <span style={{ fontWeight: 600, fontSize: '13px' }}>{art.name}</span>
+                  <span style={{ fontWeight: 600, fontSize: '14px' }}>{art.name}</span>
                 </div>
-                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                  {art.role === 'admin' ? '👑 Yönetici' : `%${100 - art.commission_rate} Pay`}
+                <span style={{ fontSize: '12px', color: '#8b949e', fontWeight: 500 }}>
+                  {art.role === 'admin' ? 'Yönetici' : `%${100 - art.commission_rate} Pay`}
                 </span>
               </button>
             ))}
           </div>
 
-          <div style={{ borderTop: '1px solid #1e293b', paddingTop: '16px' }}>
-            <p style={{ fontSize: '11px', color: '#64748b', textAlign: 'center', margin: 0 }}>veya şifreyle giriş yapın:</p>
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+          <div style={{ borderTop: '1px solid #21262d', paddingTop: '16px' }}>
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <input 
                 type="text" 
                 value={usernameInput}
                 onChange={e => setUsernameInput(e.target.value)}
                 placeholder="Kullanıcı adı"
-                style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '12px', outline: 'none' }}
+                style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '12px', padding: '11px', color: '#f0f6fc', fontSize: '13px', outline: 'none' }}
               />
               <input 
                 type="password" 
                 value={passwordInput}
                 onChange={e => setPasswordInput(e.target.value)}
                 placeholder="Şifre"
-                style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '12px', outline: 'none' }}
+                style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '12px', padding: '11px', color: '#f0f6fc', fontSize: '13px', outline: 'none' }}
               />
-              {loginError && <p style={{ color: '#fb7185', fontSize: '11px', margin: 0 }}>{loginError}</p>}
+              {loginError && <p style={{ color: '#f85149', fontSize: '12px', margin: 0 }}>{loginError}</p>}
               <button 
                 type="submit"
-                style={{ backgroundColor: '#334155', color: '#fff', fontWeight: 600, padding: '10px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '12px' }}
+                style={{ backgroundColor: '#f0f6fc', color: '#0d1117', fontWeight: 600, padding: '11px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '13px' }}
               >
-                Giriş
+                Şifreyle Giriş Yap
               </button>
             </form>
           </div>
-
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ backgroundColor: '#090d16', color: '#f1f5f9', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <header style={{ borderBottom: '1px solid #1e293b', backgroundColor: '#0d1424', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ padding: '10px', borderRadius: '12px', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-            {isSuperAdmin ? <Crown size={22} /> : <CalendarIcon size={22} />}
+    <div style={{ backgroundColor: '#0d1117', color: '#f0f6fc', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+      
+      {/* Üst Header */}
+      <header style={{ borderBottom: '1px solid #21262d', backgroundColor: '#161b22', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 40 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ padding: '8px', borderRadius: '10px', backgroundColor: '#21262d', color: '#f0f6fc', border: '1px solid #30363d' }}>
+            {isSuperAdmin ? <Crown size={18} /> : <CalendarIcon size={18} />}
           </div>
           <div>
-            <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, color: '#ffffff' }}>Studio Portal</h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: currentUser.color || '#10b981' }}></span>
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>{currentUser.name} {isSuperAdmin && '(Yönetici)'}</span>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#f0f6fc' }}>Studio Portal</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: currentUser.color || '#10b981' }}></span>
+              <span style={{ fontSize: '12px', color: '#8b949e' }}>{currentUser.name}</span>
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <button 
             onClick={() => openNewModal()}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#f59e0b', color: '#090d16', padding: '8px 14px', borderRadius: '10px', fontWeight: 600, fontSize: '13px', border: 'none', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#f0f6fc', color: '#0d1117', padding: '8px 12px', borderRadius: '10px', fontWeight: 600, fontSize: '12px', border: 'none', cursor: 'pointer' }}
           >
-            <Plus size={16} /> Yeni Randevu
+            <Plus size={15} /> Ekle
           </button>
 
           <button 
@@ -311,64 +313,71 @@ export default function App() {
               setPasswordChangeStatus({ type: '', message: '' });
               setIsPasswordModalOpen(true);
             }}
-            style={{ padding: '8px 12px', borderRadius: '10px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
+            style={{ padding: '8px', borderRadius: '10px', backgroundColor: '#21262d', border: '1px solid #30363d', color: '#8b949e', cursor: 'pointer' }}
+            title="Şifre Değiştir"
           >
-            <KeyRound size={15} /> Şifre Değiştir
+            <KeyRound size={16} />
           </button>
 
           <button 
             onClick={handleLogout}
-            style={{ padding: '8px 12px', borderRadius: '10px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
+            style={{ padding: '8px', borderRadius: '10px', backgroundColor: '#21262d', border: '1px solid #30363d', color: '#8b949e', cursor: 'pointer' }}
+            title="Çıkış"
           >
-            <LogOut size={15} /> Çıkış
+            <LogOut size={16} />
           </button>
         </div>
       </header>
 
-      <div style={{ borderBottom: '1px solid #1e293b', backgroundColor: '#0d1424', padding: '0 24px', display: 'flex', gap: '16px' }}>
+      {/* Üst Sekmeler */}
+      <div style={{ borderBottom: '1px solid #21262d', backgroundColor: '#161b22', padding: '0 16px', display: 'flex', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
         <button 
           onClick={() => setActiveTab('calendar')}
-          style={{ padding: '14px 4px', borderBottom: activeTab === 'calendar' ? '2px solid #f59e0b' : '2px solid transparent', color: activeTab === 'calendar' ? '#f59e0b' : '#94a3b8', fontWeight: 600, fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+          style={{ padding: '12px 2px', borderBottom: activeTab === 'calendar' ? '2px solid #f0f6fc' : '2px solid transparent', color: activeTab === 'calendar' ? '#f0f6fc' : '#8b949e', fontWeight: 600, fontSize: '13px', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}
         >
-          <CalendarIcon size={16} /> Aylık Stüdyo Takvimi
+          Takvim
         </button>
 
         <button 
           onClick={() => setActiveTab('my_stats')}
-          style={{ padding: '14px 4px', borderBottom: activeTab === 'my_stats' ? '2px solid #f59e0b' : '2px solid transparent', color: activeTab === 'my_stats' ? '#f59e0b' : '#94a3b8', fontWeight: 600, fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+          style={{ padding: '12px 2px', borderBottom: activeTab === 'my_stats' ? '2px solid #f0f6fc' : '2px solid transparent', color: activeTab === 'my_stats' ? '#f0f6fc' : '#8b949e', fontWeight: 600, fontSize: '13px', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}
         >
-          <TrendingUp size={16} /> Kişisel Cirom & İstatistiklerim
+          Kişisel Ciro & Hakediş
         </button>
 
         {isSuperAdmin && (
           <button 
             onClick={() => setActiveTab('admin_panel')}
-            style={{ padding: '14px 4px', borderBottom: activeTab === 'admin_panel' ? '2px solid #f59e0b' : '2px solid transparent', color: activeTab === 'admin_panel' ? '#f59e0b' : '#94a3b8', fontWeight: 600, fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+            style={{ padding: '12px 2px', borderBottom: activeTab === 'admin_panel' ? '2px solid #f0f6fc' : '2px solid transparent', color: activeTab === 'admin_panel' ? '#f0f6fc' : '#8b949e', fontWeight: 600, fontSize: '13px', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}
           >
-            <Crown size={16} /> Dükkan Yönetim Masası
+            Dükkan Masası
           </button>
         )}
       </div>
 
-      <main style={{ flex: 1, padding: '24px', maxWidth: '1400px', width: '100%', boxSizing: 'border-box', margin: '0 auto' }}>
+      {/* İçerik */}
+      <main style={{ flex: 1, padding: '16px', maxWidth: '1000px', width: '100%', boxSizing: 'border-box', margin: '0 auto' }}>
+        
         {activeTab === 'calendar' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px', backgroundColor: '#11192e', padding: '16px', borderRadius: '16px', border: '1px solid #1e293b' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#fff' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            
+            {/* Ay ve Sanatçı Filtresi */}
+            <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: '18px', padding: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#f0f6fc' }}>
                   {MONTH_NAMES[month]} {year}
                 </h3>
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <button onClick={prevMonth} style={{ padding: '6px', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', cursor: 'pointer' }}><ChevronLeft size={16} /></button>
-                  <button onClick={nextMonth} style={{ padding: '6px', borderRadius: '8px', backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff', cursor: 'pointer' }}><ChevronRight size={16} /></button>
+                  <button onClick={prevMonth} style={{ padding: '6px 10px', borderRadius: '8px', backgroundColor: '#21262d', border: '1px solid #30363d', color: '#f0f6fc', cursor: 'pointer' }}><ChevronLeft size={16} /></button>
+                  <button onClick={nextMonth} style={{ padding: '6px 10px', borderRadius: '8px', backgroundColor: '#21262d', border: '1px solid #30363d', color: '#f0f6fc', cursor: 'pointer' }}><ChevronRight size={16} /></button>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>Filtrele:</span>
+              {/* Sanatçı Filtre Çipleri */}
+              <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
                 <button 
                   onClick={() => setFilterArtist('all')}
-                  style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '12px', border: '1px solid #334155', backgroundColor: filterArtist === 'all' ? '#f59e0b' : '#1e293b', color: filterArtist === 'all' ? '#090d16' : '#94a3b8', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '12px', border: filterArtist === 'all' ? '1px solid #f0f6fc' : '1px solid #30363d', backgroundColor: filterArtist === 'all' ? '#f0f6fc' : '#21262d', color: filterArtist === 'all' ? '#0d1117' : '#8b949e', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
                 >
                   Tümü
                 </button>
@@ -376,123 +385,139 @@ export default function App() {
                   <button 
                     key={art.id}
                     onClick={() => setFilterArtist(art.id)}
-                    style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '12px', border: filterArtist === art.id ? `1px solid ${art.color}` : '1px solid #1e293b', backgroundColor: '#11192e', color: filterArtist === art.id ? '#fff' : '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '12px', border: filterArtist === art.id ? `1px solid ${art.color}` : '1px solid #30363d', backgroundColor: '#21262d', color: filterArtist === art.id ? '#f0f6fc' : '#8b949e', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}
                   >
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: art.color }}></span>
+                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: art.color }}></span>
                     {art.name}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#11192e', borderRadius: '16px', border: '1px solid #1e293b', overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: '#0d1424', borderBottom: '1px solid #1e293b', textAlign: 'center', padding: '10px 0', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
-                <div>Pzt</div><div>Sal</div><div>Çar</div><div>Per</div><div>Cum</div><div>Cmt</div><div>Paz</div>
+            {/* MOBİL İÇİN YATAY AKICI GÜN ŞERİDİ (PARMAKLA SAĞA-SOLA KAYDIRILABİLİR) */}
+            <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: '18px', padding: '14px' }}>
+              <div style={{ fontSize: '12px', color: '#8b949e', fontWeight: 600, textTransform: 'uppercase', marginBottom: '10px' }}>
+                Gün Seçin
               </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px', backgroundColor: '#1e293b' }}>
-                {Array.from({ length: firstDayIndex }).map((_, idx) => (
-                  <div key={`empty-${idx}`} style={{ backgroundColor: '#0b1120', minHeight: '110px', padding: '8px', opacity: 0.3 }}></div>
-                ))}
-
+              <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '6px' }}>
                 {Array.from({ length: daysInMonth }).map((_, idx) => {
                   const dayNum = idx + 1;
                   const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                  const dayOfWeek = (new Date(year, month, dayNum).getDay() + 6) % 7;
                   const dayAppts = filteredAppointments.filter(a => a.date === dateStr);
                   const isSelected = selectedCalendarDate === dateStr;
 
                   return (
-                    <div 
+                    <button
                       key={dateStr}
                       onClick={() => setSelectedCalendarDate(dateStr)}
-                      style={{ 
-                        backgroundColor: isSelected ? '#16223d' : '#0e1628', 
-                        minHeight: '110px', 
-                        padding: '8px', 
-                        cursor: 'pointer', 
-                        display: 'flex', 
-                        flexDirection: 'column', 
+                      style={{
+                        minWidth: '54px',
+                        padding: '10px 4px',
+                        borderRadius: '14px',
+                        backgroundColor: isSelected ? '#f0f6fc' : '#0d1117',
+                        border: isSelected ? '1px solid #f0f6fc' : '1px solid #30363d',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
                         gap: '4px',
-                        border: isSelected ? '1px solid #f59e0b' : 'none'
+                        cursor: 'pointer',
+                        flexShrink: 0
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 'bold', color: isSelected ? '#f59e0b' : '#94a3b8' }}>{dayNum}</span>
-                        {dayAppts.length > 0 && (
-                          <span style={{ fontSize: '10px', backgroundColor: '#1e293b', color: '#38bdf8', padding: '1px 5px', borderRadius: '4px' }}>
-                            {dayAppts.length}
-                          </span>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '2px' }}>
-                        {dayAppts.slice(0, 3).map(a => {
-                          const art = artists.find(i => i.id === a.artist_id);
-                          return (
-                            <div 
-                              key={a.id} 
-                              style={{ 
-                                backgroundColor: `${art?.color || '#64748b'}25`, 
-                                borderLeft: `3px solid ${art?.color || '#64748b'}`, 
-                                padding: '2px 4px', 
-                                borderRadius: '4px', 
-                                fontSize: '10px', 
-                                color: '#fff',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                              }}
-                            >
-                              <span style={{ fontWeight: 600 }}>{a.time}</span> {a.client_name}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                      <span style={{ fontSize: '11px', color: isSelected ? '#0d1117' : '#8b949e', fontWeight: 600 }}>
+                        {DAY_NAMES_SHORT[dayOfWeek]}
+                      </span>
+                      <span style={{ fontSize: '16px', fontWeight: 700, color: isSelected ? '#0d1117' : '#f0f6fc' }}>
+                        {dayNum}
+                      </span>
+                      {dayAppts.length > 0 ? (
+                        <div style={{ display: 'flex', gap: '2px', marginTop: '2px' }}>
+                          {dayAppts.slice(0, 3).map((a, i) => {
+                            const art = artists.find(item => item.id === a.artist_id);
+                            return (
+                              <span key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: isSelected ? '#0d1117' : (art?.color || '#38bdf8') }}></span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <span style={{ width: '5px', height: '5px' }}></span>
+                      )}
+                    </button>
                   );
                 })}
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#11192e', padding: '20px', borderRadius: '16px', border: '1px solid #1e293b' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h4 style={{ fontSize: '15px', fontWeight: 'bold', margin: 0, color: '#fff' }}>
-                  {selectedCalendarDate} Randevuları
-                </h4>
+            {/* SEÇİLEN GÜNÜN RANDEVULARI (AJANDA LİSTESİ) */}
+            <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: '18px', padding: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div>
+                  <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#f0f6fc' }}>
+                    {selectedCalendarDate} Randevuları
+                  </h4>
+                  <span style={{ fontSize: '12px', color: '#8b949e' }}>
+                    {dayAppointments.length} seans kayıtlı
+                  </span>
+                </div>
                 <button 
                   onClick={() => openNewModal(selectedCalendarDate)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#1e293b', color: '#f59e0b', border: '1px solid #334155', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#21262d', color: '#f0f6fc', border: '1px solid #30363d', padding: '7px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                 >
-                  <Plus size={14} /> Bu Güne Randevu Ekle
+                  <Plus size={14} /> Ekle
                 </button>
               </div>
 
-              {filteredAppointments.filter(a => a.date === selectedCalendarDate).length === 0 ? (
-                <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>Bu tarihe kayıtlı randevu bulunmuyor.</p>
+              {dayAppointments.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: '#8b949e', fontSize: '13px' }}>
+                  Bu tarihe kayıtlı randevu bulunmuyor.
+                </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
-                  {filteredAppointments.filter(a => a.date === selectedCalendarDate).map(appt => {
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {dayAppointments.map(appt => {
                     const art = artists.find(i => i.id === appt.artist_id);
                     const canSeePrice = isSuperAdmin || appt.artist_id === currentUser.id;
 
                     return (
-                      <div key={appt.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderLeft: `4px solid ${art?.color || '#64748b'}`, borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div 
+                        key={appt.id} 
+                        style={{ 
+                          backgroundColor: '#0d1117', 
+                          border: '1px solid #30363d', 
+                          borderLeft: `4px solid ${art?.color || '#8b949e'}`, 
+                          borderRadius: '14px', 
+                          padding: '14px', 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          gap: '8px' 
+                        }}
+                      >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '11px', color: art?.color, fontWeight: 'bold' }}>{art?.name}</span>
-                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>{appt.time}</span>
+                          <span style={{ fontSize: '12px', color: art?.color, fontWeight: 700 }}>
+                            {art?.name}
+                          </span>
+                          <span style={{ fontSize: '12px', color: '#8b949e', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Clock size={13} /> {appt.time}
+                          </span>
                         </div>
-                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#fff' }}>{appt.client_name}</div>
-                        <div style={{ fontSize: '12px', color: '#64748b' }}>Bölge: <span style={{ color: '#cbd5e1' }}>{appt.body_part}</span></div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '8px', borderTop: '1px solid #1e293b' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#10b981' }}>
-                            {canSeePrice ? `${Number(appt.price).toLocaleString('tr-TR')} ₺` : <span style={{ fontSize: '11px', color: '#64748b' }}><Lock size={12} style={{ display: 'inline' }} /> Gizli</span>}
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#f0f6fc' }}>
+                          {appt.client_name}
+                        </div>
+
+                        <div style={{ fontSize: '13px', color: '#8b949e' }}>
+                          Bölge: <span style={{ color: '#c9d1d9' }}>{appt.body_part}</span>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', paddingTop: '8px', borderTop: '1px solid #21262d' }}>
+                          <span style={{ fontSize: '14px', fontWeight: 700, color: '#10b981' }}>
+                            {canSeePrice ? `${Number(appt.price).toLocaleString('tr-TR')} ₺` : <span style={{ fontSize: '12px', color: '#8b949e' }}><Lock size={12} style={{ display: 'inline' }} /> Gizli</span>}
                           </span>
 
                           {canSeePrice && (
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              <button onClick={() => openEditModal(appt)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><Edit3 size={15} /></button>
-                              <button onClick={() => handleDelete(appt.id)} style={{ background: 'none', border: 'none', color: '#fb7185', cursor: 'pointer' }}><Trash2 size={15} /></button>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button onClick={() => openEditModal(appt)} style={{ background: 'none', border: 'none', color: '#8b949e', cursor: 'pointer', padding: '4px' }}><Edit3 size={16} /></button>
+                              <button onClick={() => handleDelete(appt.id)} style={{ background: 'none', border: 'none', color: '#f85149', cursor: 'pointer', padding: '4px' }}><Trash2 size={16} /></button>
                             </div>
                           )}
                         </div>
@@ -502,71 +527,74 @@ export default function App() {
                 </div>
               )}
             </div>
+
           </div>
         )}
 
+        {/* KİŞİSEL İSTATİSTİKLER (SİYAH - GRİ - KIRIK BEYAZ TEMA) */}
         {activeTab === 'my_stats' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-              <div style={{ backgroundColor: '#11192e', padding: '20px', borderRadius: '16px', border: '1px solid #1e293b' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Kişisel Brüt Ciro</span>
-                <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#ffffff', margin: '8px 0 0 0' }}>{myTotalRevenue.toLocaleString('tr-TR')} ₺</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', padding: '18px', borderRadius: '16px' }}>
+                <span style={{ fontSize: '11px', color: '#8b949e', fontWeight: 600, textTransform: 'uppercase' }}>Kişisel Brüt Ciro</span>
+                <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#f0f6fc', margin: '8px 0 0 0' }}>{myTotalRevenue.toLocaleString('tr-TR')} ₺</h3>
               </div>
 
               {!isSuperAdmin && (
                 <>
-                  <div style={{ backgroundColor: '#11192e', padding: '20px', borderRadius: '16px', border: '1px solid #1e293b' }}>
-                    <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Komisyon Paylaşımı</span>
-                    <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#38bdf8', margin: '8px 0 0 0' }}>%{100 - myCommissionRate} Pay</h3>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>(Dükkan Payı: %{myCommissionRate})</span>
+                  <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', padding: '18px', borderRadius: '16px' }}>
+                    <span style={{ fontSize: '11px', color: '#8b949e', fontWeight: 600, textTransform: 'uppercase' }}>Komisyon Paylaşımı</span>
+                    <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#f0f6fc', margin: '8px 0 0 0' }}>%{100 - myCommissionRate} Pay</h3>
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>(Dükkan Payı: %{myCommissionRate})</span>
                   </div>
 
-                  <div style={{ backgroundColor: '#11192e', padding: '20px', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                  <div style={{ backgroundColor: '#161b22', border: '1px solid #10b981', padding: '18px', borderRadius: '16px' }}>
                     <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, textTransform: 'uppercase' }}>Net Hakedişim</span>
-                    <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981', margin: '8px 0 0 0' }}>{myNetEarning.toLocaleString('tr-TR')} ₺</h3>
+                    <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#10b981', margin: '8px 0 0 0' }}>{myNetEarning.toLocaleString('tr-TR')} ₺</h3>
                   </div>
                 </>
               )}
 
-              <div style={{ backgroundColor: '#11192e', padding: '20px', borderRadius: '16px', border: '1px solid #1e293b' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Rapora Alınan Tutar</span>
-                <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b', margin: '8px 0 0 0' }}>{myReportedRevenue.toLocaleString('tr-TR')} ₺</h3>
+              <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', padding: '18px', borderRadius: '16px' }}>
+                <span style={{ fontSize: '11px', color: '#8b949e', fontWeight: 600, textTransform: 'uppercase' }}>Rapora Alınan Tutar</span>
+                <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#e6edf3', margin: '8px 0 0 0' }}>{myReportedRevenue.toLocaleString('tr-TR')} ₺</h3>
               </div>
 
-              <div style={{ backgroundColor: '#11192e', padding: '20px', borderRadius: '16px', border: '1px solid #1e293b' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Toplam Seansım</span>
-                <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#fff', margin: '8px 0 0 0' }}>{myAppointments.length}</h3>
+              <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', padding: '18px', borderRadius: '16px' }}>
+                <span style={{ fontSize: '11px', color: '#8b949e', fontWeight: 600, textTransform: 'uppercase' }}>Toplam Seansım</span>
+                <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#f0f6fc', margin: '8px 0 0 0' }}>{myAppointments.length}</h3>
               </div>
             </div>
           </div>
         )}
 
+        {/* ADMIN MASASI */}
         {activeTab === 'admin_panel' && isSuperAdmin && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-              <div style={{ backgroundColor: '#11192e', padding: '20px', borderRadius: '16px', border: '1px solid #1e293b' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Stüdyo Toplam Brüt Ciro</span>
-                <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981', margin: '8px 0 0 0' }}>{studioTotalRevenue.toLocaleString('tr-TR')} ₺</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', padding: '18px', borderRadius: '16px' }}>
+                <span style={{ fontSize: '11px', color: '#8b949e', fontWeight: 600, textTransform: 'uppercase' }}>Stüdyo Toplam Brüt Ciro</span>
+                <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#f0f6fc', margin: '8px 0 0 0' }}>{studioTotalRevenue.toLocaleString('tr-TR')} ₺</h3>
               </div>
-              <div style={{ backgroundColor: '#11192e', padding: '20px', borderRadius: '16px', border: '1px solid #1e293b' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Dükkan Net Kâr Payı</span>
-                <h3 style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b', margin: '8px 0 0 0' }}>{studioNetRevenue.toLocaleString('tr-TR')} ₺</h3>
+              <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', padding: '18px', borderRadius: '16px' }}>
+                <span style={{ fontSize: '11px', color: '#8b949e', fontWeight: 600, textTransform: 'uppercase' }}>Dükkan Net Kâr Payı</span>
+                <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#10b981', margin: '8px 0 0 0' }}>{studioNetRevenue.toLocaleString('tr-TR')} ₺</h3>
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#11192e', padding: '20px', borderRadius: '16px', border: '1px solid #1e293b' }}>
-              <h4 style={{ fontSize: '15px', fontWeight: 'bold', margin: 0, marginBottom: '16px', color: '#fff' }}>Sanatçı Hakediş ve Komisyon Tablosu</h4>
+            <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', padding: '18px', borderRadius: '16px' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, marginBottom: '14px', color: '#f0f6fc' }}>Sanatçı Hakediş ve Komisyon Tablosu</h4>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #1e293b', color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>
-                      <th style={{ padding: '10px' }}>Sanatçı</th>
-                      <th style={{ padding: '10px' }}>Dükkan Komisyonu</th>
-                      <th style={{ padding: '10px' }}>Sanatçı Oranı</th>
-                      <th style={{ padding: '10px' }}>Seans</th>
-                      <th style={{ padding: '10px' }}>Toplam Ciro</th>
-                      <th style={{ padding: '10px' }}>Dükkan Payı</th>
-                      <th style={{ padding: '10px' }}>Sanatçı Hakedişi</th>
+                    <tr style={{ borderBottom: '1px solid #21262d', color: '#8b949e', fontSize: '11px', textTransform: 'uppercase' }}>
+                      <th style={{ padding: '8px' }}>Sanatçı</th>
+                      <th style={{ padding: '8px' }}>Dükkan</th>
+                      <th style={{ padding: '8px' }}>Oran</th>
+                      <th style={{ padding: '8px' }}>Seans</th>
+                      <th style={{ padding: '8px' }}>Ciro</th>
+                      <th style={{ padding: '8px' }}>Dükkan Payı</th>
+                      <th style={{ padding: '8px' }}>Hakediş</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -578,17 +606,17 @@ export default function App() {
                       const artistCut = rev - studioCut;
 
                       return (
-                        <tr key={art.id} style={{ borderBottom: '1px solid #1e293b', color: '#cbd5e1' }}>
-                          <td style={{ padding: '12px 10px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+                        <tr key={art.id} style={{ borderBottom: '1px solid #21262d', color: '#c9d1d9' }}>
+                          <td style={{ padding: '10px 8px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: art.color }}></span>
                             {art.name}
                           </td>
-                          <td style={{ padding: '12px 10px', color: '#f59e0b', fontWeight: 600 }}>%{rate}</td>
-                          <td style={{ padding: '12px 10px', color: '#38bdf8', fontWeight: 600 }}>%{100 - rate}</td>
-                          <td style={{ padding: '12px 10px' }}>{appts.length}</td>
-                          <td style={{ padding: '12px 10px', color: '#fff', fontWeight: 600 }}>{rev.toLocaleString('tr-TR')} ₺</td>
-                          <td style={{ padding: '12px 10px', color: '#f59e0b' }}>{studioCut.toLocaleString('tr-TR')} ₺</td>
-                          <td style={{ padding: '12px 10px', color: '#10b981', fontWeight: 'bold' }}>{artistCut.toLocaleString('tr-TR')} ₺</td>
+                          <td style={{ padding: '10px 8px' }}>%{rate}</td>
+                          <td style={{ padding: '10px 8px' }}>%{100 - rate}</td>
+                          <td style={{ padding: '10px 8px' }}>{appts.length}</td>
+                          <td style={{ padding: '10px 8px', color: '#f0f6fc', fontWeight: 600 }}>{rev.toLocaleString('tr-TR')} ₺</td>
+                          <td style={{ padding: '10px 8px', color: '#e6edf3' }}>{studioCut.toLocaleString('tr-TR')} ₺</td>
+                          <td style={{ padding: '10px 8px', color: '#10b981', fontWeight: 700 }}>{artistCut.toLocaleString('tr-TR')} ₺</td>
                         </tr>
                       );
                     })}
@@ -598,74 +626,65 @@ export default function App() {
             </div>
           </div>
         )}
+
       </main>
 
+      {/* ŞİFRE DEĞİŞTİRME MODAL */}
       {isPasswordModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 110 }}>
-          <div style={{ backgroundColor: '#11192e', border: '1px solid #1e293b', borderRadius: '20px', width: '100%', maxWidth: '400px', padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <div style={{ padding: '8px', borderRadius: '10px', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
-                <KeyRound size={20} />
-              </div>
-              <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', margin: 0 }}>Şifremi Değiştir</h3>
-            </div>
-
-            <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 110 }}>
+          <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: '20px', width: '100%', maxWidth: '380px', padding: '22px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#f0f6fc', margin: '0 0 14px 0' }}>Şifremi Değiştir</h3>
+            <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Mevcut Şifre</label>
+                <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Mevcut Şifre</label>
                 <input 
                   type="password" 
                   required
                   value={currentPasswordInput}
                   onChange={e => setCurrentPasswordInput(e.target.value)}
-                  placeholder="Şu anki şifreniz"
-                  style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px' }}
+                  style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '10px', color: '#f0f6fc', fontSize: '13px' }}
                 />
               </div>
-
               <div>
-                <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Yeni Şifre</label>
+                <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Yeni Şifre</label>
                 <input 
                   type="password" 
                   required
                   value={newPasswordInput}
                   onChange={e => setNewPasswordInput(e.target.value)}
-                  placeholder="En az 4 karakter"
-                  style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px' }}
+                  style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '10px', color: '#f0f6fc', fontSize: '13px' }}
                 />
               </div>
-
               <div>
-                <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Yeni Şifre (Tekrar)</label>
+                <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Yeni Şifre (Tekrar)</label>
                 <input 
                   type="password" 
                   required
                   value={newPasswordConfirm}
                   onChange={e => setNewPasswordConfirm(e.target.value)}
-                  placeholder="Yeni şifrenizi tekrar yazın"
-                  style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px' }}
+                  style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '10px', color: '#f0f6fc', fontSize: '13px' }}
                 />
               </div>
 
               {passwordChangeStatus.message && (
-                <p style={{ color: passwordChangeStatus.type === 'error' ? '#fb7185' : '#10b981', fontSize: '12px', margin: '4px 0 0 0' }}>
+                <p style={{ color: passwordChangeStatus.type === 'error' ? '#f85149' : '#10b981', fontSize: '12px', margin: '4px 0 0 0' }}>
                   {passwordChangeStatus.message}
                 </p>
               )}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
                 <button 
                   type="button" 
                   onClick={() => setIsPasswordModalOpen(false)}
-                  style={{ backgroundColor: '#1e293b', border: 'none', color: '#94a3b8', padding: '10px 16px', borderRadius: '10px', fontSize: '13px', cursor: 'pointer' }}
+                  style={{ backgroundColor: '#21262d', border: 'none', color: '#8b949e', padding: '10px 14px', borderRadius: '10px', fontSize: '12px', cursor: 'pointer' }}
                 >
                   Vazgeç
                 </button>
                 <button 
                   type="submit"
-                  style={{ backgroundColor: '#f59e0b', border: 'none', color: '#090d16', fontWeight: 'bold', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', cursor: 'pointer' }}
+                  style={{ backgroundColor: '#f0f6fc', border: 'none', color: '#0d1117', fontWeight: 700, padding: '10px 18px', borderRadius: '10px', fontSize: '12px', cursor: 'pointer' }}
                 >
-                  Şifreyi Güncelle
+                  Güncelle
                 </button>
               </div>
             </form>
@@ -673,21 +692,22 @@ export default function App() {
         </div>
       )}
 
+      {/* RANDEVU EKLE / DÜZENLE MODAL */}
       {isModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100 }}>
-          <div style={{ backgroundColor: '#11192e', border: '1px solid #1e293b', borderRadius: '20px', width: '100%', maxWidth: '460px', padding: '24px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', margin: '0 0 16px 0' }}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100 }}>
+          <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: '20px', width: '100%', maxWidth: '420px', padding: '22px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#f0f6fc', margin: '0 0 14px 0' }}>
               {selectedAppt ? 'Randevuyu Güncelle' : 'Yeni Randevu Ekle'}
             </h3>
 
-            <form onSubmit={handleSaveAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <form onSubmit={handleSaveAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {isSuperAdmin && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Sanatçı Seçimi</label>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Sanatçı Seçimi</label>
                   <select 
                     value={formData.artist_id}
                     onChange={e => setFormData({ ...formData, artist_id: e.target.value })}
-                    style={{ width: '100%', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px' }}
+                    style={{ width: '100%', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '10px', color: '#f0f6fc', fontSize: '13px' }}
                   >
                     {artists.filter(a => a.role !== 'admin').map(art => (
                       <option key={art.id} value={art.id}>{art.name}</option>
@@ -697,63 +717,63 @@ export default function App() {
               )}
 
               <div>
-                <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Müşteri Adı</label>
+                <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Müşteri Adı</label>
                 <input 
                   type="text" 
                   required
                   value={formData.client_name}
                   onChange={e => setFormData({ ...formData, client_name: e.target.value })}
-                  style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px' }}
+                  style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '10px', color: '#f0f6fc', fontSize: '13px' }}
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Tarih</label>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Tarih</label>
                   <input 
                     type="date" 
                     required
                     value={formData.date}
                     onChange={e => setFormData({ ...formData, date: e.target.value })}
-                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px' }}
+                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '10px', color: '#f0f6fc', fontSize: '13px' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Saat</label>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Saat</label>
                   <input 
                     type="time" 
                     required
                     value={formData.time}
                     onChange={e => setFormData({ ...formData, time: e.target.value })}
-                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px' }}
+                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '10px', color: '#f0f6fc', fontSize: '13px' }}
                   />
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Dövme Bölgesi</label>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Dövme Bölgesi</label>
                   <input 
                     type="text" 
                     value={formData.body_part}
                     onChange={e => setFormData({ ...formData, body_part: e.target.value })}
                     placeholder="Örn: Ön Kol"
-                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px' }}
+                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '10px', color: '#f0f6fc', fontSize: '13px' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>Ücret (₺)</label>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Ücret (₺)</label>
                   <input 
                     type="number" 
                     required
                     value={formData.price}
                     onChange={e => setFormData({ ...formData, price: Number(e.target.value) })}
-                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '10px', padding: '10px', color: '#fff', fontSize: '13px' }}
+                    style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '10px', padding: '10px', color: '#f0f6fc', fontSize: '13px' }}
                   />
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                 <input 
                   type="checkbox" 
                   id="modal-reported"
@@ -761,20 +781,20 @@ export default function App() {
                   onChange={e => setFormData({ ...formData, reported: e.target.checked })}
                   style={{ width: '16px', height: '16px' }}
                 />
-                <label htmlFor="modal-reported" style={{ fontSize: '12px', color: '#cbd5e1', cursor: 'pointer' }}>Bu seans rapora alındı (muhasebeleştirildi)</label>
+                <label htmlFor="modal-reported" style={{ fontSize: '12px', color: '#c9d1d9', cursor: 'pointer' }}>Bu seans rapora alındı (muhasebeleştirildi)</label>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
-                  style={{ backgroundColor: '#1e293b', border: 'none', color: '#94a3b8', padding: '10px 16px', borderRadius: '10px', fontSize: '13px', cursor: 'pointer' }}
+                  style={{ backgroundColor: '#21262d', border: 'none', color: '#8b949e', padding: '10px 14px', borderRadius: '10px', fontSize: '12px', cursor: 'pointer' }}
                 >
                   İptal
                 </button>
                 <button 
                   type="submit"
-                  style={{ backgroundColor: '#f59e0b', border: 'none', color: '#090d16', fontWeight: 'bold', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', cursor: 'pointer' }}
+                  style={{ backgroundColor: '#f0f6fc', border: 'none', color: '#0d1117', fontWeight: 700, padding: '10px 18px', borderRadius: '10px', fontSize: '12px', cursor: 'pointer' }}
                 >
                   Kaydet
                 </button>
@@ -783,6 +803,7 @@ export default function App() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
