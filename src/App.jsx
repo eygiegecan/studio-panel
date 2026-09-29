@@ -87,19 +87,19 @@ export default function App() {
   });
 
   // Supabase Verilerini Çekme & Gerçek Zamanlı Senkronizasyon
+  const [dbStatus, setDbStatus] = useState('Bağlanıyor...');
+
   const fetchAppointments = async () => {
     try {
       const { data, error } = await supabase.from('appointments').select('*').order('date', { ascending: true });
-      if (!error && data && data.length > 0) {
-        setAppointments(data);
-        localStorage.setItem('nautilus_cloud_cache_v7', JSON.stringify(data));
+      if (error) {
+        setDbStatus('Hata: ' + error.message);
       } else {
-        const local = localStorage.getItem('nautilus_cloud_cache_v7');
-        if (local) setAppointments(JSON.parse(local));
+        setAppointments(data || []);
+        setDbStatus('Canlı (' + (data ? data.length : 0) + ' Randevu)');
       }
     } catch (err) {
-      const local = localStorage.getItem('nautilus_cloud_cache_v7');
-      if (local) setAppointments(JSON.parse(local));
+      setDbStatus('Bağlantı kesildi');
     }
   };
 
@@ -198,18 +198,14 @@ export default function App() {
         await supabase.from('appointments').update(payload).eq('id', selectedAppt.id);
       } catch (err) {}
     } else {
-      const tempId = 'apt_' + Date.now();
-      const newEntry = { ...payload, id: tempId };
-      try {
-        const { error } = await supabase.from('appointments').insert([newEntry]);
-        if (error) {
-          alert('Supabase Kayıt Hatası: ' + error.message);
-        } else {
-          setAppointments(prev => [newEntry, ...prev]);
-        }
-      } catch (err) {
-        alert('Bağlantı Hatası: ' + err.message);
+      const newId = 'apt_' + Date.now();
+      const newEntry = { ...payload, id: newId };
+      const { data, error } = await supabase.from('appointments').insert([newEntry]).select();
+      if (error) {
+        alert('Veritabanına Yazılamadı: ' + error.message);
+        return;
       }
+      await fetchAppointments();
     }
     setIsModalOpen(false);
     setSelectedAppt(null);
@@ -345,6 +341,10 @@ export default function App() {
           </button>
         </div>
       </header>
+      <div style={{ backgroundColor: '#161b22', borderBottom: '1px solid #21262d', padding: '4px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#8b949e' }}>
+        <span>Bulut Senkronizasyonu:</span>
+        <span style={{ color: dbStatus.includes('Canlı') ? '#10b981' : '#f85149', fontWeight: 600 }}>{dbStatus}</span>
+      </div>
 
       {/* Navigasyon Sekmeleri */}
       <div style={{ borderBottom: '1px solid #21262d', backgroundColor: '#161b22', padding: '0 16px', display: 'flex', gap: '16px', overflowX: 'auto' }}>
