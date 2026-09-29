@@ -15,14 +15,13 @@ import {
   CheckCircle2, 
   Bell, 
   Palette, 
-  LayoutGrid, 
-  SlidersHorizontal 
+  LayoutGrid 
 } from 'lucide-react';
 
 const INITIAL_ARTISTS = [
   { id: 'admin', name: 'Dükkan Sahibi', username: 'bosside', password: 'nautilus081025', role: 'admin', color: '#e6edf3', commission_rate: 0 },
   { id: 'art1', name: 'Ege Can', username: 'egecan', password: 'egecan123', role: 'artist', color: '#10b981', commission_rate: 50 },
-  { id: 'art2', name: 'Yasin', username: 'yasin', password: 'yasin123', role: 'artist', color: '#60a5fa', commission_rate: 30 },
+  { id: 'art2', name: 'Yasin', username: 'yasin', password: 'yasin123', role: 'artist', color: '#3b82f6', commission_rate: 30 },
   { id: 'art3', name: 'Asil', username: 'asil', password: 'asil123', role: 'artist', color: '#f43f5e', commission_rate: 50 },
   { id: 'art4', name: 'Yeşim', username: 'yesim', password: 'yesim123', role: 'artist', color: '#a78bfa', commission_rate: 30 },
   { id: 'art5', name: 'Oğuz', username: 'oguz', password: 'oguz123', role: 'artist', color: '#2dd4bf', commission_rate: 50 }
@@ -35,10 +34,11 @@ const MONTH_NAMES = [
 
 const DAY_NAMES_SHORT = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
-// Tema Paletleri
+// Hem Koyu Hem Açık Premium Temalar
 const THEMES = {
   obsidian: {
     name: 'Obsidian',
+    isLight: false,
     bg: '#0d1117',
     card: '#161b22',
     border: '#30363d',
@@ -47,7 +47,8 @@ const THEMES = {
     muted: '#8b949e'
   },
   midnight: {
-    name: 'Midnight Navy',
+    name: 'Midnight',
+    isLight: false,
     bg: '#0a0f1d',
     card: '#111827',
     border: '#1f293d',
@@ -56,23 +57,44 @@ const THEMES = {
     muted: '#94a3b8'
   },
   slate: {
-    name: 'Nordic Slate',
+    name: 'Slate',
+    isLight: false,
     bg: '#121417',
     card: '#1a1d23',
     border: '#2a2f38',
     subCard: '#242933',
     text: '#f8fafc',
     muted: '#94a3b8'
+  },
+  atelier: {
+    name: 'Atelier (Açık)',
+    isLight: true,
+    bg: '#f8fafc',
+    card: '#ffffff',
+    border: '#e2e8f0',
+    subCard: '#f1f5f9',
+    text: '#0f172a',
+    muted: '#64748b'
+  },
+  sand: {
+    name: 'Warm Sand (Krem)',
+    isLight: true,
+    bg: '#f7f5f0',
+    card: '#ffffff',
+    border: '#e6e2d8',
+    subCard: '#ede9df',
+    text: '#292524',
+    muted: '#78716c'
   }
 };
 
 const ACCENT_COLORS = [
-  { name: 'Klasik Beyaz', value: '#f0f6fc', text: '#0d1117' },
-  { name: 'Zümrüt', value: '#10b981', text: '#ffffff' },
-  { name: 'Okyanus', value: '#3b82f6', text: '#ffffff' },
-  { name: 'Gül', value: '#f43f5e', text: '#ffffff' },
-  { name: 'Lavanta', value: '#a855f7', text: '#ffffff' },
-  { name: 'Amber', value: '#f59e0b', text: '#0d1117' }
+  { name: 'Siyah / Beyaz Dinamik', darkVal: '#f0f6fc', lightVal: '#0f172a', textDark: '#0d1117', textLight: '#ffffff' },
+  { name: 'Zümrüt', darkVal: '#10b981', lightVal: '#059669', textDark: '#ffffff', textLight: '#ffffff' },
+  { name: 'Okyanus', darkVal: '#3b82f6', lightVal: '#2563eb', textDark: '#ffffff', textLight: '#ffffff' },
+  { name: 'Gül', darkVal: '#f43f5e', lightVal: '#e11d48', textDark: '#ffffff', textLight: '#ffffff' },
+  { name: 'Lavanta', darkVal: '#a855f7', lightVal: '#9333ea', textDark: '#ffffff', textLight: '#ffffff' },
+  { name: 'Amber', darkVal: '#f59e0b', lightVal: '#d97706', textDark: '#0d1117', textLight: '#ffffff' }
 ];
 
 export default function App() {
@@ -84,18 +106,19 @@ export default function App() {
   });
 
   const [appointments, setAppointments] = useState([]);
-  
-  // Tema ve Görünüm Tercihleri (Kullanıcıya Özel)
+
+  // Tema Tercihleri
   const [themeKey, setThemeKey] = useState(() => {
     return localStorage.getItem('nautilus_theme_key') || 'obsidian';
   });
 
-  const [accentColor, setAccentColor] = useState(() => {
-    return localStorage.getItem('nautilus_accent_color') || '#f0f6fc';
+  const [accentIndex, setAccentIndex] = useState(() => {
+    const saved = localStorage.getItem('nautilus_accent_index');
+    return saved !== null ? Number(saved) : 0;
   });
 
   const [calendarViewMode, setCalendarViewMode] = useState(() => {
-    return localStorage.getItem('nautilus_calendar_view') || 'compact'; // 'compact' veya 'grid'
+    return localStorage.getItem('nautilus_calendar_view') || 'compact';
   });
 
   const [avatars, setAvatars] = useState(() => {
@@ -144,16 +167,18 @@ export default function App() {
   });
 
   const currentTheme = THEMES[themeKey] || THEMES.obsidian;
-  const currentAccent = ACCENT_COLORS.find(c => c.value === accentColor) || ACCENT_COLORS[0];
+  const selectedAccent = ACCENT_COLORS[accentIndex] || ACCENT_COLORS[0];
+  const accentColor = currentTheme.isLight ? selectedAccent.lightVal : selectedAccent.darkVal;
+  const accentTextColor = currentTheme.isLight ? selectedAccent.textLight : selectedAccent.textDark;
 
   const changeTheme = (key) => {
     setThemeKey(key);
     localStorage.setItem('nautilus_theme_key', key);
   };
 
-  const changeAccent = (color) => {
-    setAccentColor(color);
-    localStorage.setItem('nautilus_accent_color', color);
+  const changeAccent = (index) => {
+    setAccentIndex(index);
+    localStorage.setItem('nautilus_accent_index', String(index));
   };
 
   const changeCalendarView = (mode) => {
@@ -371,7 +396,7 @@ export default function App() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayOfMonth = (new Date(year, month, 1).getDay() + 6) % 7; // Pazartesi = 0
+  const firstDayOfMonth = (new Date(year, month, 1).getDay() + 6) % 7;
 
   const isSuperAdmin = currentUser?.role === 'admin';
   const filteredAppointments = appointments.filter(a => filterArtist === 'all' || a.artist_id === filterArtist);
@@ -393,7 +418,7 @@ export default function App() {
   if (!currentUser) {
     return (
       <div style={{ backgroundColor: currentTheme.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-        <div style={{ width: '100%', maxWidth: '380px', backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '24px', padding: '32px 26px', boxShadow: '0 20px 45px rgba(0,0,0,0.8)' }}>
+        <div style={{ width: '100%', maxWidth: '380px', backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '24px', padding: '32px 26px', boxShadow: currentTheme.isLight ? '0 10px 30px rgba(0,0,0,0.06)' : '0 20px 45px rgba(0,0,0,0.8)' }}>
           <div style={{ textAlign: 'center', marginBottom: '26px' }}>
             <div style={{ display: 'inline-flex', padding: '14px', borderRadius: '18px', backgroundColor: currentTheme.subCard, color: accentColor, border: `1px solid ${currentTheme.border}`, marginBottom: '12px' }}>
               <CalendarIcon size={28} />
@@ -429,7 +454,7 @@ export default function App() {
 
             {loginError && <p style={{ color: '#f85149', fontSize: '12px', margin: 0 }}>{loginError}</p>}
 
-            <button type="submit" style={{ backgroundColor: accentColor, color: currentAccent.text, fontWeight: 700, padding: '12px', borderRadius: '12px', border: 'none', cursor: 'pointer', marginTop: '6px', fontSize: '14px' }}>
+            <button type="submit" style={{ backgroundColor: accentColor, color: accentTextColor, fontWeight: 700, padding: '12px', borderRadius: '12px', border: 'none', cursor: 'pointer', marginTop: '6px', fontSize: '14px' }}>
               Giriş Yap
             </button>
           </form>
@@ -458,7 +483,7 @@ export default function App() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button onClick={() => openNewModal()} style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: accentColor, color: currentAccent.text, padding: '8px 12px', borderRadius: '10px', fontWeight: 600, fontSize: '12px', border: 'none', cursor: 'pointer' }}>
+          <button onClick={() => openNewModal()} style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: accentColor, color: accentTextColor, padding: '8px 12px', borderRadius: '10px', fontWeight: 600, fontSize: '12px', border: 'none', cursor: 'pointer' }}>
             <Plus size={15} /> Ekle
           </button>
           <button onClick={handleLogout} style={{ padding: '8px', borderRadius: '10px', backgroundColor: currentTheme.subCard, border: `1px solid ${currentTheme.border}`, color: currentTheme.muted, cursor: 'pointer' }}>
@@ -469,14 +494,14 @@ export default function App() {
 
       {/* Navigasyon Sekmeleri */}
       <div style={{ borderBottom: `1px solid ${currentTheme.border}`, backgroundColor: currentTheme.card, padding: '0 16px', display: 'flex', gap: '16px', overflowX: 'auto' }}>
-        <button onClick={() => setActiveTab('calendar')} style={{ padding: '12px 2px', borderBottom: activeTab === 'calendar' ? `2px solid ${accentColor}` : '2px solid transparent', color: activeTab === 'calendar' ? accentColor : currentTheme.muted, fontWeight: 600, fontSize: '13px', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
+        <button onClick={() => setActiveTab('calendar')} style={{ padding: '12px 2px', borderBottom: activeTab === 'calendar' ? `2px solid ${accentColor}` : '2px solid transparent', color: activeTab === 'calendar' ? (currentTheme.isLight ? currentTheme.text : accentColor) : currentTheme.muted, fontWeight: 700, fontSize: '13px', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
           Takvim
         </button>
-        <button onClick={() => setActiveTab('profile')} style={{ padding: '12px 2px', borderBottom: activeTab === 'profile' ? `2px solid ${accentColor}` : '2px solid transparent', color: activeTab === 'profile' ? accentColor : currentTheme.muted, fontWeight: 600, fontSize: '13px', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
+        <button onClick={() => setActiveTab('profile')} style={{ padding: '12px 2px', borderBottom: activeTab === 'profile' ? `2px solid ${accentColor}` : '2px solid transparent', color: activeTab === 'profile' ? (currentTheme.isLight ? currentTheme.text : accentColor) : currentTheme.muted, fontWeight: 700, fontSize: '13px', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
           Profilim & Analiz
         </button>
         {isSuperAdmin && (
-          <button onClick={() => setActiveTab('admin_panel')} style={{ padding: '12px 2px', borderBottom: activeTab === 'admin_panel' ? `2px solid ${accentColor}` : '2px solid transparent', color: activeTab === 'admin_panel' ? accentColor : currentTheme.muted, fontWeight: 600, fontSize: '13px', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
+          <button onClick={() => setActiveTab('admin_panel')} style={{ padding: '12px 2px', borderBottom: activeTab === 'admin_panel' ? `2px solid ${accentColor}` : '2px solid transparent', color: activeTab === 'admin_panel' ? (currentTheme.isLight ? currentTheme.text : accentColor) : currentTheme.muted, fontWeight: 700, fontSize: '13px', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
             Dükkan Masası
           </button>
         )}
@@ -490,10 +515,10 @@ export default function App() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             
             {/* Ay ve Sanatçı Filtresi */}
-            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '14px' }}>
+            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>{MONTH_NAMES[month]} {year}</h3>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: currentTheme.text }}>{MONTH_NAMES[month]} {year}</h3>
                   <button onClick={() => changeCalendarView(calendarViewMode === 'compact' ? 'grid' : 'compact')} style={{ background: currentTheme.subCard, border: `1px solid ${currentTheme.border}`, color: currentTheme.muted, borderRadius: '8px', padding: '4px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                     <LayoutGrid size={12} /> {calendarViewMode === 'compact' ? 'Genişlet' : 'Kompakt'}
                   </button>
@@ -505,7 +530,7 @@ export default function App() {
               </div>
 
               <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
-                <button onClick={() => setFilterArtist('all')} style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '12px', border: filterArtist === 'all' ? `1px solid ${accentColor}` : `1px solid ${currentTheme.border}`, backgroundColor: filterArtist === 'all' ? accentColor : currentTheme.subCard, color: filterArtist === 'all' ? currentAccent.text : currentTheme.muted, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>Tümü</button>
+                <button onClick={() => setFilterArtist('all')} style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '12px', border: filterArtist === 'all' ? `1px solid ${accentColor}` : `1px solid ${currentTheme.border}`, backgroundColor: filterArtist === 'all' ? accentColor : currentTheme.subCard, color: filterArtist === 'all' ? accentTextColor : currentTheme.muted, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>Tümü</button>
                 {INITIAL_ARTISTS.filter(a => a.role !== 'admin').map(art => (
                   <button key={art.id} onClick={() => setFilterArtist(art.id)} style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '12px', border: filterArtist === art.id ? `1px solid ${art.color}` : `1px solid ${currentTheme.border}`, backgroundColor: currentTheme.subCard, color: filterArtist === art.id ? currentTheme.text : currentTheme.muted, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: art.color }}></span>
@@ -515,25 +540,20 @@ export default function App() {
               </div>
             </div>
 
-            {/* TAKVİM ALANI: 1) GENİŞ IZGARA VEYA 2) KOMPAKT ŞERİT */}
+            {/* TAKVİM DÜZENİ: GENİŞ IZGARA VEYA KOMPAKT ŞERİT */}
             {calendarViewMode === 'grid' ? (
-              /* GENİŞ AYLIK IZGARA GÖRÜNÜMÜ */
-              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '14px' }}>
-                {/* Gün Başlıkları */}
+              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', marginBottom: '8px' }}>
                   {DAY_NAMES_SHORT.map((d, i) => (
                     <span key={i} style={{ fontSize: '11px', color: currentTheme.muted, fontWeight: 600 }}>{d}</span>
                   ))}
                 </div>
 
-                {/* Gün Hücreleri */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
-                  {/* Ayın ilk gününden önceki boşluklar */}
                   {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-                    <div key={'empty_' + i} style={{ height: '48px', borderRadius: '10px', opacity: 0.1, backgroundColor: currentTheme.subCard }}></div>
+                    <div key={'empty_' + i} style={{ height: '52px', borderRadius: '12px', opacity: 0.2, backgroundColor: currentTheme.subCard }}></div>
                   ))}
 
-                  {/* Ayın günleri */}
                   {Array.from({ length: daysInMonth }).map((_, idx) => {
                     const dayNum = idx + 1;
                     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
@@ -557,16 +577,16 @@ export default function App() {
                           cursor: 'pointer' 
                         }}
                       >
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: isSelected ? currentAccent.text : currentTheme.text }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: isSelected ? accentTextColor : currentTheme.text }}>
                           {dayNum}
                         </span>
                         {dayAppts.length > 0 ? (
                           <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
                             {dayAppts.slice(0, 3).map((a, i) => (
-                              <span key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: isSelected ? currentAccent.text : '#38bdf8' }}></span>
+                              <span key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: isSelected ? accentTextColor : '#3b82f6' }}></span>
                             ))}
                             {dayAppts.length > 3 && (
-                              <span style={{ fontSize: '9px', fontWeight: 700, color: isSelected ? currentAccent.text : currentTheme.muted }}>+</span>
+                              <span style={{ fontSize: '9px', fontWeight: 700, color: isSelected ? accentTextColor : currentTheme.muted }}>+</span>
                             )}
                           </div>
                         ) : <span style={{ height: '5px' }}></span>}
@@ -576,8 +596,7 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              /* KOMPAKT YATAY ŞERİT GÖRÜNÜMÜ */
-              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '14px' }}>
+              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
                 <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '6px' }}>
                   {Array.from({ length: daysInMonth }).map((_, idx) => {
                     const dayNum = idx + 1;
@@ -588,12 +607,12 @@ export default function App() {
 
                     return (
                       <button key={dateStr} onClick={() => setSelectedCalendarDate(dateStr)} style={{ minWidth: '52px', padding: '10px 4px', borderRadius: '14px', backgroundColor: isSelected ? accentColor : currentTheme.bg, border: isSelected ? `1px solid ${accentColor}` : `1px solid ${currentTheme.border}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', cursor: 'pointer', flexShrink: 0 }}>
-                        <span style={{ fontSize: '11px', color: isSelected ? currentAccent.text : currentTheme.muted, fontWeight: 600 }}>{DAY_NAMES_SHORT[dayOfWeek]}</span>
-                        <span style={{ fontSize: '16px', fontWeight: 700, color: isSelected ? currentAccent.text : currentTheme.text }}>{dayNum}</span>
+                        <span style={{ fontSize: '11px', color: isSelected ? accentTextColor : currentTheme.muted, fontWeight: 600 }}>{DAY_NAMES_SHORT[dayOfWeek]}</span>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: isSelected ? accentTextColor : currentTheme.text }}>{dayNum}</span>
                         {dayAppts.length > 0 ? (
                           <div style={{ display: 'flex', gap: '2px' }}>
                             {dayAppts.slice(0, 3).map((a, i) => (
-                              <span key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: isSelected ? currentAccent.text : '#60a5fa' }}></span>
+                              <span key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: isSelected ? accentTextColor : '#3b82f6' }}></span>
                             ))}
                           </div>
                         ) : <span style={{ width: '4px', height: '4px' }}></span>}
@@ -605,9 +624,9 @@ export default function App() {
             )}
 
             {/* Randevu Kartları */}
-            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px' }}>
+            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{selectedCalendarDate} Seansları</h4>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: currentTheme.text }}>{selectedCalendarDate} Seansları</h4>
                 <button onClick={() => openNewModal(selectedCalendarDate)} style={{ backgroundColor: currentTheme.subCard, color: currentTheme.text, border: `1px solid ${currentTheme.border}`, padding: '6px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>+ Yeni Randevu</button>
               </div>
 
@@ -648,8 +667,8 @@ export default function App() {
                             {canSeePrice ? (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
                                 <span style={{ fontWeight: 700, color: currentTheme.text }}>{price.toLocaleString('tr-TR')} ₺</span>
-                                <span style={{ color: '#10b981', backgroundColor: '#0f2d1e', padding: '2px 6px', borderRadius: '6px', fontSize: '11px' }}>Kapora: {deposit.toLocaleString('tr-TR')} ₺</span>
-                                <span style={{ color: isPaid ? currentTheme.muted : '#f59e0b', fontSize: '11px' }}>
+                                <span style={{ color: '#059669', backgroundColor: currentTheme.isLight ? '#d1fae5' : '#0f2d1e', padding: '2px 6px', borderRadius: '6px', fontSize: '11px', fontWeight: 600 }}>Kapora: {deposit.toLocaleString('tr-TR')} ₺</span>
+                                <span style={{ color: isPaid ? currentTheme.muted : '#d97706', fontSize: '11px', fontWeight: 600 }}>
                                   {isPaid ? 'Ödendi' : `Kalan: ${remaining.toLocaleString('tr-TR')} ₺`}
                                 </span>
                               </div>
@@ -682,7 +701,7 @@ export default function App() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             
             {/* Profil Kartı */}
-            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
               <div style={{ position: 'relative' }}>
                 {avatars[currentUser.id] ? (
                   <img src={avatars[currentUser.id]} alt="Avatar" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accentColor}` }} />
@@ -691,31 +710,31 @@ export default function App() {
                     {currentUser.name.charAt(0)}
                   </div>
                 )}
-                <label htmlFor="user-avatar" style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: accentColor, color: currentAccent.text, borderRadius: '50%', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <label htmlFor="user-avatar" style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: accentColor, color: accentTextColor, borderRadius: '50%', padding: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Camera size={14} />
                 </label>
                 <input id="user-avatar" type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
               </div>
               <div style={{ textAlign: 'center' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>{currentUser.name}</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: currentTheme.text }}>{currentUser.name}</h3>
                 <span style={{ fontSize: '12px', color: currentTheme.muted }}>@{currentUser.username} {isSuperAdmin ? '• Yönetici' : `• %${100 - myRate} Sanatçı Payı`}</span>
               </div>
-              <button onClick={requestNotificationPermission} style={{ backgroundColor: currentTheme.subCard, border: `1px solid ${currentTheme.border}`, color: '#60a5fa', padding: '6px 12px', borderRadius: '10px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+              <button onClick={requestNotificationPermission} style={{ backgroundColor: currentTheme.subCard, border: `1px solid ${currentTheme.border}`, color: '#2563eb', padding: '6px 12px', borderRadius: '10px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
                 <Bell size={14} /> Yeni Randevu Bildirimlerini Aç
               </button>
             </div>
 
-            {/* YENİ: ARAYÜZ & TEMA KİŞİSELLEŞTİRME KARTI */}
-            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px' }}>
+            {/* ARAYÜZ & TEMA KİŞİSELLEŞTİRME KARTI */}
+            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
                 <Palette size={16} style={{ color: accentColor }} />
-                <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Arayüz & Tema Ayarları</h4>
+                <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: currentTheme.text }}>Arayüz & Tema Ayarları</h4>
               </div>
 
-              {/* 1. Arka Plan Teması */}
+              {/* 1. Arka Plan Teması (Açık ve Koyu Seçenekler) */}
               <div style={{ marginBottom: '14px' }}>
-                <span style={{ display: 'block', fontSize: '12px', color: currentTheme.muted, marginBottom: '8px' }}>Arka Plan Atmosferi</span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                <span style={{ display: 'block', fontSize: '12px', color: currentTheme.muted, marginBottom: '8px' }}>Atmosfer (Açık & Koyu Temalar)</span>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px' }}>
                   {Object.entries(THEMES).map(([key, t]) => (
                     <button 
                       key={key} 
@@ -726,8 +745,8 @@ export default function App() {
                         backgroundColor: t.card, 
                         border: themeKey === key ? `2px solid ${accentColor}` : `1px solid ${t.border}`, 
                         color: t.text, 
-                        fontSize: '12px', 
-                        fontWeight: 600, 
+                        fontSize: '11px', 
+                        fontWeight: 700, 
                         cursor: 'pointer' 
                       }}
                     >
@@ -741,16 +760,16 @@ export default function App() {
               <div style={{ marginBottom: '14px' }}>
                 <span style={{ display: 'block', fontSize: '12px', color: currentTheme.muted, marginBottom: '8px' }}>Vurgu Rengi (Accent)</span>
                 <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-                  {ACCENT_COLORS.map(c => (
+                  {ACCENT_COLORS.map((c, idx) => (
                     <button 
-                      key={c.value} 
-                      onClick={() => changeAccent(c.value)} 
+                      key={idx} 
+                      onClick={() => changeAccent(idx)} 
                       style={{ 
                         width: '32px', 
                         height: '32px', 
                         borderRadius: '50%', 
-                        backgroundColor: c.value, 
-                        border: accentColor === c.value ? '3px solid #ffffff' : '2px solid transparent', 
+                        backgroundColor: currentTheme.isLight ? c.lightVal : c.darkVal, 
+                        border: accentIndex === idx ? (currentTheme.isLight ? '3px solid #0f172a' : '3px solid #ffffff') : '2px solid transparent', 
                         cursor: 'pointer', 
                         flexShrink: 0 
                       }} 
@@ -771,7 +790,7 @@ export default function App() {
                       borderRadius: '10px', 
                       backgroundColor: calendarViewMode === 'compact' ? currentTheme.subCard : currentTheme.bg, 
                       border: calendarViewMode === 'compact' ? `1px solid ${accentColor}` : `1px solid ${currentTheme.border}`, 
-                      color: calendarViewMode === 'compact' ? accentColor : currentTheme.muted, 
+                      color: calendarViewMode === 'compact' ? currentTheme.text : currentTheme.muted, 
                       fontSize: '12px', 
                       fontWeight: 600, 
                       cursor: 'pointer' 
@@ -786,7 +805,7 @@ export default function App() {
                       borderRadius: '10px', 
                       backgroundColor: calendarViewMode === 'grid' ? currentTheme.subCard : currentTheme.bg, 
                       border: calendarViewMode === 'grid' ? `1px solid ${accentColor}` : `1px solid ${currentTheme.border}`, 
-                      color: calendarViewMode === 'grid' ? accentColor : currentTheme.muted, 
+                      color: calendarViewMode === 'grid' ? currentTheme.text : currentTheme.muted, 
                       fontSize: '12px', 
                       fontWeight: 600, 
                       cursor: 'pointer' 
@@ -800,32 +819,32 @@ export default function App() {
 
             {/* Kişisel Finans Özeti */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '14px' }}>
+              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
                 <span style={{ fontSize: '11px', color: currentTheme.muted, textTransform: 'uppercase' }}>Kişisel Ciro</span>
                 <h4 style={{ fontSize: '18px', fontWeight: 700, margin: '6px 0 0 0', color: currentTheme.text }}>{myRevenue.toLocaleString('tr-TR')} ₺</h4>
               </div>
 
               {!isSuperAdmin && (
-                <div style={{ backgroundColor: currentTheme.card, border: '1px solid #10b981', borderRadius: '16px', padding: '14px' }}>
-                  <span style={{ fontSize: '11px', color: '#10b981', textTransform: 'uppercase' }}>Net Hakedişim</span>
-                  <h4 style={{ fontSize: '18px', fontWeight: 700, margin: '6px 0 0 0', color: '#10b981' }}>{myCut.toLocaleString('tr-TR')} ₺</h4>
+                <div style={{ backgroundColor: currentTheme.card, border: '1px solid #10b981', borderRadius: '16px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
+                  <span style={{ fontSize: '11px', color: '#059669', textTransform: 'uppercase' }}>Net Hakedişim</span>
+                  <h4 style={{ fontSize: '18px', fontWeight: 700, margin: '6px 0 0 0', color: '#059669' }}>{myCut.toLocaleString('tr-TR')} ₺</h4>
                 </div>
               )}
 
-              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '14px' }}>
+              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
                 <span style={{ fontSize: '11px', color: currentTheme.muted, textTransform: 'uppercase' }}>Toplam Seans</span>
                 <h4 style={{ fontSize: '18px', fontWeight: 700, margin: '6px 0 0 0', color: currentTheme.text }}>{myAppts.length} Seans</h4>
               </div>
 
-              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '14px' }}>
+              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
                 <span style={{ fontSize: '11px', color: currentTheme.muted, textTransform: 'uppercase' }}>Ortalama Seans</span>
-                <h4 style={{ fontSize: '18px', fontWeight: 700, margin: '6px 0 0 0', color: '#60a5fa' }}>{myAppts.length > 0 ? Math.round(myRevenue / myAppts.length).toLocaleString('tr-TR') : 0} ₺</h4>
+                <h4 style={{ fontSize: '18px', fontWeight: 700, margin: '6px 0 0 0', color: '#2563eb' }}>{myAppts.length > 0 ? Math.round(myRevenue / myAppts.length).toLocaleString('tr-TR') : 0} ₺</h4>
               </div>
             </div>
 
             {/* Şifre Değiştir */}
-            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px' }}>
-              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0' }}>Şifre Değiştir</h4>
+            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: currentTheme.text }}>Şifre Değiştir</h4>
               <form onSubmit={handlePasswordUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <input type="password" required placeholder="Mevcut Şifre" value={currentPass} onChange={e => setCurrentPass(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '10px', padding: '10px', color: currentTheme.text, fontSize: '13px' }} />
                 <input type="password" required placeholder="Yeni Şifre" value={newPass} onChange={e => setNewPass(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '10px', padding: '10px', color: currentTheme.text, fontSize: '13px' }} />
@@ -840,18 +859,18 @@ export default function App() {
         {activeTab === 'admin_panel' && isSuperAdmin && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '16px' }}>
+              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
                 <span style={{ fontSize: '11px', color: currentTheme.muted, textTransform: 'uppercase' }}>Stüdyo Toplam Ciro</span>
                 <h3 style={{ fontSize: '20px', fontWeight: 700, margin: '6px 0 0 0', color: currentTheme.text }}>{allRevenue.toLocaleString('tr-TR')} ₺</h3>
               </div>
-              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '16px' }}>
+              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
                 <span style={{ fontSize: '11px', color: currentTheme.muted, textTransform: 'uppercase' }}>Toplanan Kapora</span>
-                <h3 style={{ fontSize: '20px', fontWeight: 700, margin: '6px 0 0 0', color: '#10b981' }}>{allDeposits.toLocaleString('tr-TR')} ₺</h3>
+                <h3 style={{ fontSize: '20px', fontWeight: 700, margin: '6px 0 0 0', color: '#059669' }}>{allDeposits.toLocaleString('tr-TR')} ₺</h3>
               </div>
             </div>
 
-            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px' }}>
-              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0' }}>Sanatçı Hasılat & Hakedişleri</h4>
+            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: currentTheme.text }}>Sanatçı Hasılat & Hakedişleri</h4>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                   <thead>
@@ -870,11 +889,11 @@ export default function App() {
                       const cut = rev * (art.commission_rate / 100);
                       return (
                         <tr key={art.id} style={{ borderBottom: `1px solid ${currentTheme.border}` }}>
-                          <td style={{ padding: '8px 4px', fontWeight: 600 }}>{art.name}</td>
-                          <td style={{ padding: '8px 4px' }}>{aAppts.length}</td>
-                          <td style={{ padding: '8px 4px' }}>{rev.toLocaleString('tr-TR')} ₺</td>
+                          <td style={{ padding: '8px 4px', fontWeight: 600, color: currentTheme.text }}>{art.name}</td>
+                          <td style={{ padding: '8px 4px', color: currentTheme.text }}>{aAppts.length}</td>
+                          <td style={{ padding: '8px 4px', color: currentTheme.text }}>{rev.toLocaleString('tr-TR')} ₺</td>
                           <td style={{ padding: '8px 4px', color: currentTheme.muted }}>{cut.toLocaleString('tr-TR')} ₺</td>
-                          <td style={{ padding: '8px 4px', color: '#10b981', fontWeight: 700 }}>{(rev - cut).toLocaleString('tr-TR')} ₺</td>
+                          <td style={{ padding: '8px 4px', color: '#059669', fontWeight: 700 }}>{(rev - cut).toLocaleString('tr-TR')} ₺</td>
                         </tr>
                       );
                     })}
@@ -889,9 +908,9 @@ export default function App() {
 
       {/* Randevu Ekle / Düzenle Modal */}
       {isModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100 }}>
-          <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', width: '100%', maxWidth: '380px', padding: '20px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 12px 0' }}>{selectedAppt ? 'Randevuyu Düzenle' : 'Yeni Randevu Ekle'}</h3>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100 }}>
+          <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', width: '100%', maxWidth: '380px', padding: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 12px 0', color: currentTheme.text }}>{selectedAppt ? 'Randevuyu Düzenle' : 'Yeni Randevu Ekle'}</h3>
             <form onSubmit={handleSaveAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {isSuperAdmin && (
                 <div>
@@ -937,7 +956,7 @@ export default function App() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
                 <button type="button" onClick={() => setIsModalOpen(false)} style={{ backgroundColor: currentTheme.subCard, border: 'none', color: currentTheme.muted, padding: '8px 14px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>İptal</button>
-                <button type="submit" style={{ backgroundColor: accentColor, border: 'none', color: currentAccent.text, fontWeight: 700, padding: '8px 16px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>Kaydet</button>
+                <button type="submit" style={{ backgroundColor: accentColor, border: 'none', color: accentTextColor, fontWeight: 700, padding: '8px 16px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>Kaydet</button>
               </div>
             </form>
           </div>
