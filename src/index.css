@@ -1,1 +1,1 @@
-:root { font-family: sans-serif; color-scheme: dark; } body { margin: 0; background-color: #0d1117; color: #f0f6fc; }
+:root { font-family: sans-serif; color-scheme: dark; } body { margin: 0; background-color: #0d1117; color: #f0f6fc; box-sizing: border-box; } * { box-sizing: border-box; }
