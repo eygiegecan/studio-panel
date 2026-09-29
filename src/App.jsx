@@ -11,12 +11,10 @@ import {
   Trash2, 
   Edit3, 
   Camera, 
-  User, 
-  BarChart3, 
-  Award, 
-  Lightbulb, 
+  MessageCircle, 
   CheckCircle2, 
-  CalendarDays 
+  Bell, 
+  Phone 
 } from 'lucide-react';
 
 const INITIAL_ARTISTS = [
@@ -44,6 +42,8 @@ export default function App() {
   });
 
   const [appointments, setAppointments] = useState([]);
+  const [dbStatus, setDbStatus] = useState('Bağlanıyor...');
+
   const [avatars, setAvatars] = useState(() => {
     try {
       const saved = localStorage.getItem('nautilus_avatars_v7');
@@ -68,8 +68,8 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAppt, setSelectedAppt] = useState(null);
 
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 8, 29));
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState('2026-09-29');
+  const [currentDate, setCurrentDate] = useState(new Date(2026, 8, 30));
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState('2026-09-30');
 
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
@@ -78,17 +78,37 @@ export default function App() {
   const [formData, setFormData] = useState({
     artist_id: '',
     client_name: '',
-    date: '2026-09-29',
+    phone: '',
+    date: '2026-09-30',
     time: '14:00',
     body_part: 'Ön Kol',
     price: 3500,
+    deposit: 500,
+    payment_status: 'pending',
     reported: false,
     status: 'pending'
   });
 
-  // Supabase Verilerini Çekme & Gerçek Zamanlı Senkronizasyon
-  const [dbStatus, setDbStatus] = useState('Bağlanıyor...');
+  // Bildirim İzni İsteme Fonksiyonu
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        new Notification('Nautilus Studio Portal', {
+          body: 'Randevu bildirimleri başarıyla aktifleştirildi!',
+          icon: '/favicon.ico'
+        });
+      }
+    }
+  };
 
+  const showNotification = (title, body) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/favicon.ico' });
+    }
+  };
+
+  // Supabase Verilerini Çekme
   const fetchAppointments = async () => {
     try {
       const { data, error } = await supabase.from('appointments').select('*').order('date', { ascending: true });
@@ -106,19 +126,24 @@ export default function App() {
   useEffect(() => {
     fetchAppointments();
 
-    // Supabase Anlık Canlı Dinleme (Realtime)
+    // Supabase Realtime Dinleme & Anlık Bildirim
     const channel = supabase
-      .channel('schema-db-changes')
+      .channel('realtime-appointments')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'appointments' },
         (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newDoc = payload.new;
+            const artist = INITIAL_ARTISTS.find(a => a.id === newDoc.artist_id);
+            showNotification('Yeni Randevu!', `${artist ? artist.name : 'Bir sanatçı'} için ${newDoc.client_name} randevusu eklendi.`);
+          }
           fetchAppointments();
         }
       )
       .subscribe();
 
-    const interval = setInterval(fetchAppointments, 6000);
+    const interval = setInterval(fetchAppointments, 8000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -189,36 +214,63 @@ export default function App() {
     const payload = {
       ...formData,
       artist_id: currentUser.role === 'admin' ? (formData.artist_id || 'art1') : currentUser.id,
-      price: Number(formData.price)
+      price: Number(formData.price) || 0,
+      deposit: Number(formData.deposit) || 0
     };
 
     if (selectedAppt) {
-      setAppointments(prev => prev.map(a => a.id === selectedAppt.id ? { ...payload, id: a.id } : a));
-      try {
-        await supabase.from('appointments').update(payload).eq('id', selectedAppt.id);
-      } catch (err) {}
+      const { error } = await supabase.from('appointments').update(payload).eq('id', selectedAppt.id);
+      if (error) {
+        alert('Güncelleme hatası: ' + error.message);
+        return;
+      }
     } else {
       const newId = 'apt_' + Date.now();
       const newEntry = { ...payload, id: newId };
-      const { data, error } = await supabase.from('appointments').insert([newEntry]).select();
+      const { error } = await supabase.from('appointments').insert([newEntry]);
       if (error) {
-        alert('Veritabanına Yazılamadı: ' + error.message);
+        alert('Kayıt hatası: ' + error.message);
         return;
       }
-      await fetchAppointments();
     }
     setIsModalOpen(false);
     setSelectedAppt(null);
     fetchAppointments();
   };
 
+  const togglePaymentStatus = async (appt) => {
+    const nextStatus = appt.payment_status === 'completed' ? 'pending' : 'completed';
+    const { error } = await supabase.from('appointments').update({ payment_status: nextStatus }).eq('id', appt.id);
+    if (!error) {
+      fetchAppointments();
+    }
+  };
+
   const handleDelete = async (id) => {
     if (confirm('Bu randevuyu silmek istediğinize emin misiniz?')) {
-      setAppointments(prev => prev.filter(a => a.id !== id));
-      try {
-        await supabase.from('appointments').delete().eq('id', id);
-      } catch (err) {}
+      const { error } = await supabase.from('appointments').delete().eq('id', id);
+      if (error) {
+        alert('Silme hatası: ' + error.message);
+      } else {
+        fetchAppointments();
+      }
     }
+  };
+
+  // Standart WhatsApp Mesajı Gönderme
+  const sendWhatsApp = (appt) => {
+    if (!appt.phone) {
+      alert('Bu randevuda kayıtlı telefon numarası bulunmuyor.');
+      return;
+    }
+    const cleanPhone = appt.phone.replace(/[^0-9]/g, '');
+    const phoneWithCountry = cleanPhone.startsWith('90') ? cleanPhone : (cleanPhone.startsWith('0') ? '9' + cleanPhone : '90' + cleanPhone);
+    const artist = INITIAL_ARTISTS.find(a => a.id === appt.artist_id);
+    const artistName = artist ? artist.name : 'Nautilus Tattoo Ekibi';
+
+    const text = `Merhaba ${appt.client_name}, Nautilus Tattoo'da ${appt.date} günü saat ${appt.time}'de ${artistName} ile dövme seansınız planlanmıştır. Randevu saatinden önce tok gelmenizi ve bol su tüketmenizi rica ederiz. Görüşmek üzere!`;
+    const url = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
   };
 
   const openNewModal = (defaultDate = null) => {
@@ -226,10 +278,13 @@ export default function App() {
     setFormData({
       artist_id: currentUser.role === 'admin' ? 'art1' : currentUser.id,
       client_name: '',
+      phone: '',
       date: defaultDate || selectedCalendarDate,
       time: '14:00',
       body_part: 'Ön Kol',
       price: 3500,
+      deposit: 500,
+      payment_status: 'pending',
       reported: false,
       status: 'pending'
     });
@@ -238,7 +293,12 @@ export default function App() {
 
   const openEditModal = (appt) => {
     setSelectedAppt(appt);
-    setFormData(appt);
+    setFormData({
+      ...appt,
+      phone: appt.phone || '',
+      deposit: appt.deposit || 0,
+      payment_status: appt.payment_status || 'pending'
+    });
     setIsModalOpen(true);
   };
 
@@ -259,6 +319,7 @@ export default function App() {
   const myCut = myRevenue - (myRevenue * (myRate / 100));
 
   const allRevenue = appointments.reduce((acc, a) => acc + Number(a.price || 0), 0);
+  const allDeposits = appointments.reduce((acc, a) => acc + Number(a.deposit || 0), 0);
   const studioNetProfit = appointments.reduce((acc, a) => {
     const art = INITIAL_ARTISTS.find(i => i.id === a.artist_id);
     const r = art ? art.commission_rate : 50;
@@ -285,7 +346,7 @@ export default function App() {
                 required 
                 value={usernameInput} 
                 onChange={e => setUsernameInput(e.target.value)} 
-                placeholder="örn: bosside, yasin, egecan..." 
+                placeholder="bosside, yasin, egecan..." 
                 style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '12px', padding: '12px', color: '#f0f6fc', fontSize: '14px' }} 
               />
             </div>
@@ -341,9 +402,16 @@ export default function App() {
           </button>
         </div>
       </header>
-      <div style={{ backgroundColor: '#161b22', borderBottom: '1px solid #21262d', padding: '4px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#8b949e' }}>
-        <span>Bulut Senkronizasyonu:</span>
-        <span style={{ color: dbStatus.includes('Canlı') ? '#10b981' : '#f85149', fontWeight: 600 }}>{dbStatus}</span>
+
+      {/* Bulut Senkronizasyon & Bildirim Çubuğu */}
+      <div style={{ backgroundColor: '#161b22', borderBottom: '1px solid #21262d', padding: '6px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#8b949e' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: dbStatus.includes('Canlı') ? '#10b981' : '#f85149' }}></span>
+          <span>{dbStatus}</span>
+        </div>
+        <button onClick={requestNotificationPermission} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: 0 }}>
+          <Bell size={12} /> Bildirimleri Aç
+        </button>
       </div>
 
       {/* Navigasyon Sekmeleri */}
@@ -367,6 +435,8 @@ export default function App() {
         {/* TAKVİM SEKMESİ */}
         {activeTab === 'calendar' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            
+            {/* Ay ve Sanatçı Filtresi */}
             <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: '18px', padding: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>{MONTH_NAMES[month]} {year}</h3>
@@ -387,7 +457,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Yatay Gün Seçimi */}
+            {/* Yatay Günler */}
             <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: '18px', padding: '14px' }}>
               <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '6px' }}>
                 {Array.from({ length: daysInMonth }).map((_, idx) => {
@@ -428,23 +498,55 @@ export default function App() {
                   {dayAppointments.map(appt => {
                     const art = INITIAL_ARTISTS.find(i => i.id === appt.artist_id);
                     const canSeePrice = isSuperAdmin || appt.artist_id === currentUser.id;
+                    const price = Number(appt.price || 0);
+                    const deposit = Number(appt.deposit || 0);
+                    const remaining = Math.max(0, price - deposit);
+                    const isPaid = appt.payment_status === 'completed';
 
                     return (
-                      <div key={appt.id} style={{ backgroundColor: '#0d1117', border: '1px solid #30363d', borderLeft: `4px solid ${art?.color || '#8b949e'}`, borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div key={appt.id} style={{ backgroundColor: '#0d1117', border: '1px solid #30363d', borderLeft: `4px solid ${art?.color || '#8b949e'}`, borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: '12px', color: art?.color, fontWeight: 700 }}>{art?.name}</span>
                           <span style={{ fontSize: '12px', color: '#8b949e', display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> {appt.time}</span>
                         </div>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#f0f6fc' }}>{appt.client_name}</div>
-                        <div style={{ fontSize: '12px', color: '#8b949e' }}>Bölge: <span style={{ color: '#c9d1d9' }}>{appt.body_part}</span></div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', paddingTop: '6px', borderTop: '1px solid #21262d' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#10b981' }}>
-                            {canSeePrice ? `${Number(appt.price).toLocaleString('tr-TR')} ₺` : <span style={{ color: '#8b949e', fontSize: '12px' }}><Lock size={12} style={{ display: 'inline' }} /> Gizli</span>}
-                          </span>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#f0f6fc' }}>{appt.client_name}</div>
+                            <div style={{ fontSize: '12px', color: '#8b949e' }}>Bölge: <span style={{ color: '#c9d1d9' }}>{appt.body_part}</span></div>
+                          </div>
+
+                          {/* WhatsApp Butonu */}
+                          {appt.phone && (
+                            <button onClick={() => sendWhatsApp(appt)} style={{ backgroundColor: '#238636', color: '#ffffff', border: 'none', borderRadius: '10px', padding: '6px 10px', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                              <MessageCircle size={14} /> WhatsApp
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Finans & Kapora Durumu */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', paddingTop: '8px', borderTop: '1px solid #21262d' }}>
+                          <div>
+                            {canSeePrice ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                                <span style={{ fontWeight: 700, color: '#f0f6fc' }}>{price.toLocaleString('tr-TR')} ₺</span>
+                                <span style={{ color: '#10b981', backgroundColor: '#0f2d1e', padding: '2px 6px', borderRadius: '6px', fontSize: '11px' }}>Kapora: {deposit.toLocaleString('tr-TR')} ₺</span>
+                                <span style={{ color: isPaid ? '#8b949e' : '#f59e0b', fontSize: '11px' }}>
+                                  {isPaid ? 'Ödendi' : `Kalan: ${remaining.toLocaleString('tr-TR')} ₺`}
+                                </span>
+                              </div>
+                            ) : (
+                              <span style={{ color: '#8b949e', fontSize: '12px' }}><Lock size={12} style={{ display: 'inline' }} /> Fiyat Gizli</span>
+                            )}
+                          </div>
+
                           {canSeePrice && (
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              <button onClick={() => openEditModal(appt)} style={{ background: 'none', border: 'none', color: '#8b949e', cursor: 'pointer' }}><Edit3 size={15} /></button>
-                              <button onClick={() => handleDelete(appt.id)} style={{ background: 'none', border: 'none', color: '#f85149', cursor: 'pointer' }}><Trash2 size={15} /></button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <button onClick={() => togglePaymentStatus(appt)} title="Ödeme Durumu Değiştir" style={{ background: 'none', border: 'none', color: isPaid ? '#10b981' : '#8b949e', cursor: 'pointer', padding: 0 }}>
+                                <CheckCircle2 size={16} />
+                              </button>
+                              <button onClick={() => openEditModal(appt)} style={{ background: 'none', border: 'none', color: '#8b949e', cursor: 'pointer', padding: 0 }}><Edit3 size={15} /></button>
+                              <button onClick={() => handleDelete(appt.id)} style={{ background: 'none', border: 'none', color: '#f85149', cursor: 'pointer', padding: 0 }}><Trash2 size={15} /></button>
                             </div>
                           )}
                         </div>
@@ -457,7 +559,7 @@ export default function App() {
           </div>
         )}
 
-        {/* KİŞİSEL PROFİL & ANALİZ SEKMESİ */}
+        {/* PROFİLİM & ANALİZ SEKMESİ */}
         {activeTab === 'profile' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: '18px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
@@ -525,8 +627,8 @@ export default function App() {
                 <h3 style={{ fontSize: '20px', fontWeight: 700, margin: '6px 0 0 0', color: '#f0f6fc' }}>{allRevenue.toLocaleString('tr-TR')} ₺</h3>
               </div>
               <div style={{ backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: '16px', padding: '16px' }}>
-                <span style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>Dükkan Net Kârı</span>
-                <h3 style={{ fontSize: '20px', fontWeight: 700, margin: '6px 0 0 0', color: '#10b981' }}>{studioNetProfit.toLocaleString('tr-TR')} ₺</h3>
+                <span style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase' }}>Toplanan Kapora</span>
+                <h3 style={{ fontSize: '20px', fontWeight: 700, margin: '6px 0 0 0', color: '#10b981' }}>{allDeposits.toLocaleString('tr-TR')} ₺</h3>
               </div>
             </div>
 
@@ -587,6 +689,10 @@ export default function App() {
                 <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Müşteri Adı</label>
                 <input type="text" required value={formData.client_name} onChange={e => setFormData({ ...formData, client_name: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '8px', padding: '8px', color: '#f0f6fc', fontSize: '13px' }} />
               </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Telefon (WhatsApp İçin)</label>
+                <input type="tel" placeholder="05xxxxxxxxx" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '8px', padding: '8px', color: '#f0f6fc', fontSize: '13px' }} />
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Tarih</label>
@@ -597,14 +703,18 @@ export default function App() {
                   <input type="time" required value={formData.time} onChange={e => setFormData({ ...formData, time: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '8px', padding: '8px', color: '#f0f6fc', fontSize: '13px' }} />
                 </div>
               </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Bölge / Model</label>
+                <input type="text" value={formData.body_part} onChange={e => setFormData({ ...formData, body_part: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '8px', padding: '8px', color: '#f0f6fc', fontSize: '13px' }} />
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Bölge</label>
-                  <input type="text" value={formData.body_part} onChange={e => setFormData({ ...formData, body_part: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '8px', padding: '8px', color: '#f0f6fc', fontSize: '13px' }} />
+                  <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Toplam Ücret (₺)</label>
+                  <input type="number" required value={formData.price} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '8px', padding: '8px', color: '#f0f6fc', fontSize: '13px' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Ücret (₺)</label>
-                  <input type="number" required value={formData.price} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '8px', padding: '8px', color: '#f0f6fc', fontSize: '13px' }} />
+                  <label style={{ display: 'block', fontSize: '11px', color: '#8b949e', marginBottom: '4px' }}>Alınan Kapora (₺)</label>
+                  <input type="number" value={formData.deposit} onChange={e => setFormData({ ...formData, deposit: Number(e.target.value) })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#0d1117', border: '1px solid #30363d', borderRadius: '8px', padding: '8px', color: '#f0f6fc', fontSize: '13px' }} />
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
