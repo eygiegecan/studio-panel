@@ -105,8 +105,25 @@ export default function App() {
 
   useEffect(() => {
     fetchAppointments();
-    const interval = setInterval(fetchAppointments, 5000);
-    return () => clearInterval(interval);
+
+    // Supabase Anlık Canlı Dinleme (Realtime)
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointments' },
+        (payload) => {
+          fetchAppointments();
+        }
+      )
+      .subscribe();
+
+    const interval = setInterval(fetchAppointments, 6000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleLogin = (e) => {
@@ -183,10 +200,16 @@ export default function App() {
     } else {
       const tempId = 'apt_' + Date.now();
       const newEntry = { ...payload, id: tempId };
-      setAppointments(prev => [newEntry, ...prev]);
       try {
-        await supabase.from('appointments').insert([newEntry]);
-      } catch (err) {}
+        const { error } = await supabase.from('appointments').insert([newEntry]);
+        if (error) {
+          alert('Supabase Kayıt Hatası: ' + error.message);
+        } else {
+          setAppointments(prev => [newEntry, ...prev]);
+        }
+      } catch (err) {
+        alert('Bağlantı Hatası: ' + err.message);
+      }
     }
     setIsModalOpen(false);
     setSelectedAppt(null);
