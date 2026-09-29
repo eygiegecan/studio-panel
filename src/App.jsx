@@ -403,16 +403,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Bulut Senkronizasyon & Bildirim Çubuğu */}
-      <div style={{ backgroundColor: '#161b22', borderBottom: '1px solid #21262d', padding: '6px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#8b949e' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: dbStatus.includes('Canlı') ? '#10b981' : '#f85149' }}></span>
-          <span>{dbStatus}</span>
-        </div>
-        <button onClick={requestNotificationPermission} style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: 0 }}>
-          <Bell size={12} /> Bildirimleri Aç
-        </button>
-      </div>
+
 
       {/* Navigasyon Sekmeleri */}
       <div style={{ borderBottom: '1px solid #21262d', backgroundColor: '#161b22', padding: '0 16px', display: 'flex', gap: '16px', overflowX: 'auto' }}>
@@ -507,7 +498,7 @@ export default function App() {
                       <div key={appt.id} style={{ backgroundColor: '#0d1117', border: '1px solid #30363d', borderLeft: `4px solid ${art?.color || '#8b949e'}`, borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: '12px', color: art?.color, fontWeight: 700 }}>{art?.name}</span>
-                          <span style={{ fontSize: '12px', color: '#8b949e', display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> {appt.time}</span>
+                          <span style={{ fontSize: '12px', color: '#8b949e', display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> {appt.time ? appt.time.slice(0, 5) : ''}</span>
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -580,6 +571,9 @@ export default function App() {
                 <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>{currentUser.name}</h3>
                 <span style={{ fontSize: '12px', color: '#8b949e' }}>@{currentUser.username} {isSuperAdmin ? '• Yönetici' : `• %${100 - myRate} Sanatçı Payı`}</span>
               </div>
+              <button onClick={requestNotificationPermission} style={{ backgroundColor: '#21262d', border: '1px solid #30363d', color: '#60a5fa', padding: '6px 12px', borderRadius: '10px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                <Bell size={14} /> Yeni Randevu Bildirimlerini Aç
+              </button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
