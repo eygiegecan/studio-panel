@@ -15,17 +15,12 @@ import {
   CheckCircle2, 
   Bell, 
   Palette, 
-  LayoutGrid 
+  LayoutGrid, 
+  UserPlus, 
+  Key, 
+  ShieldCheck, 
+  UserCheck 
 } from 'lucide-react';
-
-const INITIAL_ARTISTS = [
-  { id: 'admin', name: 'Dükkan Sahibi', username: 'bosside', password: 'nautilus081025', role: 'admin', color: '#e6edf3', commission_rate: 0 },
-  { id: 'art1', name: 'Ege Can', username: 'egecan', password: 'egecan123', role: 'artist', color: '#10b981', commission_rate: 50 },
-  { id: 'art2', name: 'Yasin', username: 'yasin', password: 'yasin123', role: 'artist', color: '#3b82f6', commission_rate: 30 },
-  { id: 'art3', name: 'Asil', username: 'asil', password: 'asil123', role: 'artist', color: '#f43f5e', commission_rate: 50 },
-  { id: 'art4', name: 'Yeşim', username: 'yesim', password: 'yesim123', role: 'artist', color: '#a78bfa', commission_rate: 30 },
-  { id: 'art5', name: 'Oğuz', username: 'oguz', password: 'oguz123', role: 'artist', color: '#2dd4bf', commission_rate: 50 }
-];
 
 const MONTH_NAMES = [
   'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 
@@ -34,7 +29,6 @@ const MONTH_NAMES = [
 
 const DAY_NAMES_SHORT = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
-// Hem Koyu Hem Açık Premium Temalar
 const THEMES = {
   obsidian: {
     name: 'Obsidian',
@@ -98,16 +92,16 @@ const ACCENT_COLORS = [
 ];
 
 export default function App() {
+  const [artists, setArtists] = useState([]);
   const [currentUser, setCurrentUser] = useState(() => {
     try {
-      const saved = localStorage.getItem('nautilus_active_session_v7');
+      const saved = localStorage.getItem('nautilus_active_session_v9');
       return saved ? JSON.parse(saved) : null;
     } catch(e) { return null; }
   });
 
   const [appointments, setAppointments] = useState([]);
 
-  // Tema Tercihleri
   const [themeKey, setThemeKey] = useState(() => {
     return localStorage.getItem('nautilus_theme_key') || 'obsidian';
   });
@@ -123,14 +117,7 @@ export default function App() {
 
   const [avatars, setAvatars] = useState(() => {
     try {
-      const saved = localStorage.getItem('nautilus_avatars_v7');
-      return saved ? JSON.parse(saved) : {};
-    } catch(e) { return {}; }
-  });
-
-  const [passwords, setPasswords] = useState(() => {
-    try {
-      const saved = localStorage.getItem('nautilus_passwords_v7');
+      const saved = localStorage.getItem('nautilus_avatars_v9');
       return saved ? JSON.parse(saved) : {};
     } catch(e) { return {}; }
   });
@@ -145,18 +132,31 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAppt, setSelectedAppt] = useState(null);
 
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 8, 30));
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState('2026-09-30');
+  // Kullanıcı Ekleme / Düzenleme Modal State'i
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingArtist, setEditingArtist] = useState(null);
+  const [userFormData, setUserFormData] = useState({
+    name: '',
+    username: '',
+    password: '',
+    role: 'artist',
+    color: '#10b981',
+    commission_rate: 50
+  });
+
+  const [currentDate, setCurrentDate] = useState(new Date(2026, 9, 1));
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState('2026-10-01');
 
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [passMsg, setPassMsg] = useState('');
+  const [passLoading, setPassLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     artist_id: '',
     client_name: '',
     phone: '',
-    date: '2026-09-30',
+    date: '2026-10-01',
     time: '14:00',
     body_part: 'Ön Kol',
     price: 3500,
@@ -204,6 +204,17 @@ export default function App() {
     }
   };
 
+  // Supabase'den Ekip Listesini Çek
+  const fetchArtists = async () => {
+    try {
+      const { data, error } = await supabase.from('artists').select('*').order('created_at', { ascending: true });
+      if (!error && data) {
+        setArtists(data);
+      }
+    } catch (err) {}
+  };
+
+  // Supabase'den Randevuları Çek
   const fetchAppointments = async () => {
     try {
       const { data, error } = await supabase.from('appointments').select('*').order('date', { ascending: true });
@@ -214,9 +225,10 @@ export default function App() {
   };
 
   useEffect(() => {
+    fetchArtists();
     fetchAppointments();
 
-    const channel = supabase
+    const apptChannel = supabase
       .channel('realtime-appointments')
       .on(
         'postgres_changes',
@@ -224,7 +236,7 @@ export default function App() {
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const newDoc = payload.new;
-            const artist = INITIAL_ARTISTS.find(a => a.id === newDoc.artist_id);
+            const artist = artists.find(a => a.id === newDoc.artist_id);
             showNotification('Yeni Randevu!', `${artist ? artist.name : 'Bir sanatçı'} için ${newDoc.client_name} randevusu eklendi.`);
           }
           fetchAppointments();
@@ -232,36 +244,67 @@ export default function App() {
       )
       .subscribe();
 
-    const interval = setInterval(fetchAppointments, 8000);
+    const artistChannel = supabase
+      .channel('realtime-artists')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'artists' },
+        () => {
+          fetchArtists();
+        }
+      )
+      .subscribe();
+
+    const interval = setInterval(() => {
+      fetchAppointments();
+      fetchArtists();
+    }, 6000);
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(apptChannel);
+      supabase.removeChannel(artistChannel);
       clearInterval(interval);
     };
   }, []);
 
-  const handleLogin = (e) => {
+  // Giriş Yapma (Doğrudan Buluttan Kontrol)
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
     const cleanUser = usernameInput.trim().toLowerCase();
-    const user = INITIAL_ARTISTS.find(a => a.username.toLowerCase() === cleanUser);
-    
-    if (user) {
-      const effectivePassword = passwords[user.id] || user.password;
-      if (passwordInput === effectivePassword) {
-        setCurrentUser(user);
-        localStorage.setItem('nautilus_active_session_v7', JSON.stringify(user));
+
+    // Özel Dükkan Sahibi Giriş Koruması (Veritabanında olmasa dahi giriş garantisi)
+    if (cleanUser === 'bosside' && passwordInput === 'nautilus081025') {
+      const bossObj = { id: 'admin', name: 'Dükkan Sahibi', username: 'bosside', password: 'nautilus081025', role: 'admin', color: '#e6edf3', commission_rate: 0 };
+      setCurrentUser(bossObj);
+      localStorage.setItem('nautilus_active_session_v9', JSON.stringify(bossObj));
+      setUsernameInput('');
+      setPasswordInput('');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('*')
+        .ilike('username', cleanUser)
+        .single();
+
+      if (!error && data && data.password === passwordInput) {
+        setCurrentUser(data);
+        localStorage.setItem('nautilus_active_session_v9', JSON.stringify(data));
         setUsernameInput('');
         setPasswordInput('');
         return;
       }
-    }
+    } catch (err) {}
+
     setLoginError('Kullanıcı adı veya şifre hatalı!');
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('nautilus_active_session_v7');
+    localStorage.removeItem('nautilus_active_session_v9');
   };
 
   const handleAvatarUpload = (e) => {
@@ -272,37 +315,154 @@ export default function App() {
         const base64 = reader.result;
         const newAvatars = { ...avatars, [currentUser.id]: base64 };
         setAvatars(newAvatars);
-        localStorage.setItem('nautilus_avatars_v7', JSON.stringify(newAvatars));
+        localStorage.setItem('nautilus_avatars_v9', JSON.stringify(newAvatars));
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handlePasswordUpdate = (e) => {
+  // Kendi Şifresini Değiştirme
+  const handlePasswordUpdate = async (e) => {
     e.preventDefault();
     setPassMsg('');
-    const currentValidPass = passwords[currentUser.id] || currentUser.password;
-    if (currentPass !== currentValidPass) {
-      setPassMsg('Mevcut şifre hatalı!');
-      return;
+    setPassLoading(true);
+
+    try {
+      if (currentUser.id === 'admin') {
+        setPassMsg('Yönetici ana şifresi sistem tarafından korunmaktadır.');
+        setPassLoading(false);
+        return;
+      }
+
+      const { data: dbUser } = await supabase
+        .from('artists')
+        .select('password')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (dbUser && dbUser.password !== currentPass) {
+        setPassMsg('Mevcut şifreniz hatalı!');
+        setPassLoading(false);
+        return;
+      }
+
+      if (newPass.length < 4) {
+        setPassMsg('Yeni şifre en az 4 haneli olmalıdır.');
+        setPassLoading(false);
+        return;
+      }
+
+      const { error: updateErr } = await supabase
+        .from('artists')
+        .update({ password: newPass })
+        .eq('id', currentUser.id);
+
+      if (updateErr) {
+        setPassMsg('Hata: ' + updateErr.message);
+      } else {
+        const updatedUser = { ...currentUser, password: newPass };
+        setCurrentUser(updatedUser);
+        localStorage.setItem('nautilus_active_session_v9', JSON.stringify(updatedUser));
+        setPassMsg('Şifreniz buluta kaydedildi!');
+        setCurrentPass('');
+        setNewPass('');
+        fetchArtists();
+      }
+    } catch (err) {
+      setPassMsg('Bağlantı hatası.');
+    } finally {
+      setPassLoading(false);
     }
-    if (newPass.length < 4) {
-      setPassMsg('Yeni şifre en az 4 haneli olmalıdır.');
-      return;
-    }
-    const updated = { ...passwords, [currentUser.id]: newPass };
-    setPasswords(updated);
-    localStorage.setItem('nautilus_passwords_v7', JSON.stringify(updated));
-    setPassMsg('Şifreniz başarıyla değiştirildi.');
-    setCurrentPass('');
-    setNewPass('');
   };
 
+  // --- DÜKKAN SAHİBİ KULLANICI YÖNETİMİ ---
+  const openNewUserModal = () => {
+    setEditingArtist(null);
+    setUserFormData({
+      name: '',
+      username: '',
+      password: '',
+      role: 'artist',
+      color: '#10b981',
+      commission_rate: 50
+    });
+    setIsUserModalOpen(true);
+  };
+
+  const openEditUserModal = (art) => {
+    setEditingArtist(art);
+    setUserFormData({
+      name: art.name,
+      username: art.username,
+      password: art.password,
+      role: art.role || 'artist',
+      color: art.color || '#10b981',
+      commission_rate: art.commission_rate || 50
+    });
+    setIsUserModalOpen(true);
+  };
+
+  const handleSaveUser = async (e) => {
+    e.preventDefault();
+    const cleanUser = userFormData.username.trim().toLowerCase();
+
+    if (editingArtist) {
+      // Güncelle
+      const { error } = await supabase.from('artists').update({
+        name: userFormData.name,
+        username: cleanUser,
+        password: userFormData.password,
+        role: userFormData.role,
+        color: userFormData.color,
+        commission_rate: Number(userFormData.commission_rate)
+      }).eq('id', editingArtist.id);
+
+      if (error) {
+        alert('Kullanıcı güncellenemedi: ' + error.message);
+        return;
+      }
+    } else {
+      // Yeni Ekle
+      const newId = 'art_' + Date.now();
+      const { error } = await supabase.from('artists').insert([{
+        id: newId,
+        name: userFormData.name,
+        username: cleanUser,
+        password: userFormData.password,
+        role: userFormData.role,
+        color: userFormData.color,
+        commission_rate: Number(userFormData.commission_rate)
+      }]);
+
+      if (error) {
+        alert('Kullanıcı eklenemedi: ' + error.message);
+        return;
+      }
+    }
+
+    setIsUserModalOpen(false);
+    setEditingArtist(null);
+    await fetchArtists();
+  };
+
+  const handleDeleteUser = async (id, name) => {
+    if (confirm(`${name} isimli kullanıcıyı silmek istediğinize emin misiniz?`)) {
+      const { error } = await supabase.from('artists').delete().eq('id', id);
+      if (error) {
+        alert('Silme hatası: ' + error.message);
+      } else {
+        await fetchArtists();
+      }
+    }
+  };
+
+  // Randevu İşlemleri
   const handleSaveAppointment = async (e) => {
     e.preventDefault();
+    const defaultArtistId = artists.find(a => a.role !== 'admin')?.id || 'art1';
     const payload = {
       ...formData,
-      artist_id: currentUser.role === 'admin' ? (formData.artist_id || 'art1') : currentUser.id,
+      artist_id: currentUser.role === 'admin' ? (formData.artist_id || defaultArtistId) : currentUser.id,
       price: Number(formData.price) || 0,
       deposit: Number(formData.deposit) || 0
     };
@@ -353,7 +513,7 @@ export default function App() {
     }
     const cleanPhone = appt.phone.replace(/[^0-9]/g, '');
     const phoneWithCountry = cleanPhone.startsWith('90') ? cleanPhone : (cleanPhone.startsWith('0') ? '9' + cleanPhone : '90' + cleanPhone);
-    const artist = INITIAL_ARTISTS.find(a => a.id === appt.artist_id);
+    const artist = artists.find(a => a.id === appt.artist_id);
     const artistName = artist ? artist.name : 'Nautilus Tattoo Ekibi';
 
     const text = `Merhaba ${appt.client_name}, Nautilus Tattoo'da ${appt.date} günü saat ${appt.time ? appt.time.slice(0, 5) : ''}'de ${artistName} ile dövme seansınız planlanmıştır. Randevu saatinden önce tok gelmenizi ve bol su tüketmenizi rica ederiz. Görüşmek üzere!`;
@@ -362,9 +522,10 @@ export default function App() {
   };
 
   const openNewModal = (defaultDate = null) => {
+    const defaultArtistId = artists.find(a => a.role !== 'admin')?.id || 'art1';
     setSelectedAppt(null);
     setFormData({
-      artist_id: currentUser.role === 'admin' ? 'art1' : currentUser.id,
+      artist_id: currentUser.role === 'admin' ? defaultArtistId : currentUser.id,
       client_name: '',
       phone: '',
       date: defaultDate || selectedCalendarDate,
@@ -410,7 +571,7 @@ export default function App() {
   const allRevenue = appointments.reduce((acc, a) => acc + Number(a.price || 0), 0);
   const allDeposits = appointments.reduce((acc, a) => acc + Number(a.deposit || 0), 0);
   const studioNetProfit = appointments.reduce((acc, a) => {
-    const art = INITIAL_ARTISTS.find(i => i.id === a.artist_id);
+    const art = artists.find(i => i.id === a.artist_id);
     const r = art ? art.commission_rate : 50;
     return acc + (Number(a.price || 0) * (r / 100));
   }, 0);
@@ -435,7 +596,7 @@ export default function App() {
                 required 
                 value={usernameInput} 
                 onChange={e => setUsernameInput(e.target.value)} 
-                placeholder="bosside, yasin, egecan..." 
+                placeholder="bosside, aylin, egecan..." 
                 style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '12px', padding: '12px', color: currentTheme.text, fontSize: '14px' }} 
               />
             </div>
@@ -502,7 +663,7 @@ export default function App() {
         </button>
         {isSuperAdmin && (
           <button onClick={() => setActiveTab('admin_panel')} style={{ padding: '12px 2px', borderBottom: activeTab === 'admin_panel' ? `2px solid ${accentColor}` : '2px solid transparent', color: activeTab === 'admin_panel' ? (currentTheme.isLight ? currentTheme.text : accentColor) : currentTheme.muted, fontWeight: 700, fontSize: '13px', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
-            Dükkan Masası
+            Dükkan Masası & Ekip
           </button>
         )}
       </div>
@@ -531,7 +692,7 @@ export default function App() {
 
               <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
                 <button onClick={() => setFilterArtist('all')} style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '12px', border: filterArtist === 'all' ? `1px solid ${accentColor}` : `1px solid ${currentTheme.border}`, backgroundColor: filterArtist === 'all' ? accentColor : currentTheme.subCard, color: filterArtist === 'all' ? accentTextColor : currentTheme.muted, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>Tümü</button>
-                {INITIAL_ARTISTS.filter(a => a.role !== 'admin').map(art => (
+                {artists.filter(a => a.role !== 'admin').map(art => (
                   <button key={art.id} onClick={() => setFilterArtist(art.id)} style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '12px', border: filterArtist === art.id ? `1px solid ${art.color}` : `1px solid ${currentTheme.border}`, backgroundColor: currentTheme.subCard, color: filterArtist === art.id ? currentTheme.text : currentTheme.muted, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: art.color }}></span>
                     {art.name}
@@ -540,7 +701,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* TAKVİM DÜZENİ: GENİŞ IZGARA VEYA KOMPAKT ŞERİT */}
+            {/* TAKVİM DÜZENİ */}
             {calendarViewMode === 'grid' ? (
               <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', marginBottom: '8px' }}>
@@ -635,7 +796,7 @@ export default function App() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {dayAppointments.map(appt => {
-                    const art = INITIAL_ARTISTS.find(i => i.id === appt.artist_id);
+                    const art = artists.find(i => i.id === appt.artist_id);
                     const canSeePrice = isSuperAdmin || appt.artist_id === currentUser.id;
                     const price = Number(appt.price || 0);
                     const deposit = Number(appt.deposit || 0);
@@ -731,7 +892,7 @@ export default function App() {
                 <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: currentTheme.text }}>Arayüz & Tema Ayarları</h4>
               </div>
 
-              {/* 1. Arka Plan Teması (Açık ve Koyu Seçenekler) */}
+              {/* 1. Arka Plan Teması */}
               <div style={{ marginBottom: '14px' }}>
                 <span style={{ display: 'block', fontSize: '12px', color: currentTheme.muted, marginBottom: '8px' }}>Atmosfer (Açık & Koyu Temalar)</span>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '8px' }}>
@@ -844,18 +1005,20 @@ export default function App() {
 
             {/* Şifre Değiştir */}
             <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
-              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: currentTheme.text }}>Şifre Değiştir</h4>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: currentTheme.text }}>Kendi Şifremi Değiştir</h4>
               <form onSubmit={handlePasswordUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <input type="password" required placeholder="Mevcut Şifre" value={currentPass} onChange={e => setCurrentPass(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '10px', padding: '10px', color: currentTheme.text, fontSize: '13px' }} />
                 <input type="password" required placeholder="Yeni Şifre" value={newPass} onChange={e => setNewPass(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '10px', padding: '10px', color: currentTheme.text, fontSize: '13px' }} />
-                {passMsg && <p style={{ fontSize: '12px', margin: 0, color: passMsg.includes('başarıyla') ? '#10b981' : '#f85149' }}>{passMsg}</p>}
-                <button type="submit" style={{ backgroundColor: currentTheme.subCard, border: `1px solid ${currentTheme.border}`, color: currentTheme.text, padding: '10px', borderRadius: '10px', fontWeight: 600, fontSize: '12px', cursor: 'pointer' }}>Şifreyi Güncelle</button>
+                {passMsg && <p style={{ fontSize: '12px', margin: 0, color: passMsg.includes('buluta kaydedildi') ? '#10b981' : '#f85149' }}>{passMsg}</p>}
+                <button type="submit" disabled={passLoading} style={{ backgroundColor: currentTheme.subCard, border: `1px solid ${currentTheme.border}`, color: currentTheme.text, padding: '10px', borderRadius: '10px', fontWeight: 600, fontSize: '12px', cursor: 'pointer', opacity: passLoading ? 0.6 : 1 }}>
+                  {passLoading ? 'Kaydediliyor...' : 'Şifreyi Güncelle'}
+                </button>
               </form>
             </div>
           </div>
         )}
 
-        {/* DÜKKAN SAHİBİ MASASI */}
+        {/* DÜKKAN SAHİBİ MASASI & EKİP YÖNETİMİ */}
         {activeTab === 'admin_panel' && isSuperAdmin && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -869,6 +1032,49 @@ export default function App() {
               </div>
             </div>
 
+            {/* YENİ: EKİP VE KULLANICI YÖNETİM MODÜLÜ */}
+            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShieldCheck size={18} style={{ color: accentColor }} />
+                  <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: currentTheme.text }}>Ekip & Sanatçı Yönetimi</h4>
+                </div>
+                <button onClick={openNewUserModal} style={{ backgroundColor: accentColor, color: accentTextColor, border: 'none', borderRadius: '10px', padding: '6px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <UserPlus size={14} /> Yeni Sanatçı Ekle
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {artists.filter(a => a.role !== 'admin').map(art => (
+                  <div key={art.id} style={{ backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: art.color || '#10b981' }}></span>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: currentTheme.text }}>{art.name} <span style={{ fontSize: '11px', color: currentTheme.muted }}>({art.role === 'assistant' ? 'Asistan' : 'Sanatçı'})</span></div>
+                        <div style={{ fontSize: '11px', color: currentTheme.muted, display: 'flex', gap: '8px', marginTop: '2px' }}>
+                          <span>K.Adı: <strong style={{ color: currentTheme.text }}>{art.username}</strong></span>
+                          <span>•</span>
+                          <span>Şifre: <strong style={{ color: '#60a5fa' }}>{art.password}</strong></span>
+                          <span>•</span>
+                          <span>Dükkan Payı: <strong style={{ color: '#059669' }}>%{art.commission_rate}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button onClick={() => openEditUserModal(art)} title="Düzenle / Şifre Değiştir" style={{ backgroundColor: currentTheme.subCard, border: `1px solid ${currentTheme.border}`, color: currentTheme.text, padding: '6px 8px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                        <Key size={13} /> Düzenle
+                      </button>
+                      <button onClick={() => handleDeleteUser(art.id, art.name)} title="Kullanıcıyı Sil" style={{ backgroundColor: 'transparent', border: 'none', color: '#f85149', padding: '6px', cursor: 'pointer' }}>
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Sanatçı Hasılat & Hakediş Tablosu */}
             <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
               <h4 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: currentTheme.text }}>Sanatçı Hasılat & Hakedişleri</h4>
               <div style={{ overflowX: 'auto' }}>
@@ -883,7 +1089,7 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {INITIAL_ARTISTS.filter(a => a.role !== 'admin').map(art => {
+                    {artists.filter(a => a.role !== 'admin').map(art => {
                       const aAppts = appointments.filter(a => a.artist_id === art.id);
                       const rev = aAppts.reduce((acc, a) => acc + Number(a.price || 0), 0);
                       const cut = rev * (art.commission_rate / 100);
@@ -906,6 +1112,60 @@ export default function App() {
 
       </main>
 
+      {/* KULLANICI EKLE / DÜZENLE MODAL (DÜKKAN SAHİBİ İÇİN) */}
+      {isUserModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 110 }}>
+          <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', width: '100%', maxWidth: '380px', padding: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 12px 0', color: currentTheme.text }}>
+              {editingArtist ? `${editingArtist.name} Bilgilerini Düzenle` : 'Yeni Sanatçı / Asistan Ekle'}
+            </h3>
+            <form onSubmit={handleSaveUser} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Ad Soyad</label>
+                <input type="text" required placeholder="örn: Aylin" value={userFormData.name} onChange={e => setUserFormData({ ...userFormData, name: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Kullanıcı Adı</label>
+                  <input type="text" required placeholder="aylin" value={userFormData.username} onChange={e => setUserFormData({ ...userFormData, username: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Şifre</label>
+                  <input type="text" required placeholder="aylin123" value={userFormData.password} onChange={e => setUserFormData({ ...userFormData, password: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Rol</label>
+                  <select value={userFormData.role} onChange={e => setUserFormData({ ...userFormData, role: e.target.value })} style={{ width: '100%', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }}>
+                    <option value="artist">Sanatçı</option>
+                    <option value="assistant">Asistan</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Dükkan Payı (%)</label>
+                  <input type="number" required min="0" max="100" placeholder="60" value={userFormData.commission_rate} onChange={e => setUserFormData({ ...userFormData, commission_rate: Number(e.target.value) })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Takvim Etiket Rengi</label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {['#10b981', '#3b82f6', '#f43f5e', '#a78bfa', '#f59e0b', '#2dd4bf', '#ec4899', '#eab308'].map(color => (
+                    <button key={color} type="button" onClick={() => setUserFormData({ ...userFormData, color })} style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: color, border: userFormData.color === color ? '2px solid #ffffff' : 'none', cursor: 'pointer' }} />
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                <button type="button" onClick={() => setIsUserModalOpen(false)} style={{ backgroundColor: currentTheme.subCard, border: 'none', color: currentTheme.muted, padding: '8px 14px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>İptal</button>
+                <button type="submit" style={{ backgroundColor: accentColor, border: 'none', color: accentTextColor, fontWeight: 700, padding: '8px 16px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                  {editingArtist ? 'Kaydet' : 'Kullanıcıyı Oluştur'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Randevu Ekle / Düzenle Modal */}
       {isModalOpen && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 100 }}>
@@ -916,7 +1176,7 @@ export default function App() {
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Sanatçı</label>
                   <select value={formData.artist_id} onChange={e => setFormData({ ...formData, artist_id: e.target.value })} style={{ width: '100%', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }}>
-                    {INITIAL_ARTISTS.filter(a => a.role !== 'admin').map(art => (
+                    {artists.filter(a => a.role !== 'admin').map(art => (
                       <option key={art.id} value={art.id}>{art.name}</option>
                     ))}
                   </select>
