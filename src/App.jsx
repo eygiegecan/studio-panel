@@ -19,7 +19,10 @@ import {
   UserPlus, 
   Key, 
   ShieldCheck, 
-  UserCheck 
+  Share2, 
+  Receipt, 
+  Sparkles, 
+  Copy 
 } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -101,6 +104,7 @@ export default function App() {
   });
 
   const [appointments, setAppointments] = useState([]);
+  const [expenses, setExpenses] = useState([]);
 
   const [themeKey, setThemeKey] = useState(() => {
     return localStorage.getItem('nautilus_theme_key') || 'obsidian';
@@ -143,6 +147,17 @@ export default function App() {
     color: '#10b981',
     commission_rate: 50
   });
+
+  // Gider Ekleme Modal State'i
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [expenseFormData, setExpenseFormData] = useState({
+    title: '',
+    amount: '',
+    category: 'Sarf Malzeme',
+    date: new Date().toISOString().slice(0, 10)
+  });
+
+  const [copiedSummary, setCopiedSummary] = useState(false);
 
   const [currentDate, setCurrentDate] = useState(new Date(2026, 9, 1));
   const [selectedCalendarDate, setSelectedCalendarDate] = useState('2026-10-01');
@@ -204,7 +219,7 @@ export default function App() {
     }
   };
 
-  // Supabase'den Ekip Listesini Çek
+  // Verileri Çek
   const fetchArtists = async () => {
     try {
       const { data, error } = await supabase.from('artists').select('*').order('created_at', { ascending: true });
@@ -214,7 +229,6 @@ export default function App() {
     } catch (err) {}
   };
 
-  // Supabase'den Randevuları Çek
   const fetchAppointments = async () => {
     try {
       const { data, error } = await supabase.from('appointments').select('*').order('date', { ascending: true });
@@ -224,9 +238,19 @@ export default function App() {
     } catch (err) {}
   };
 
+  const fetchExpenses = async () => {
+    try {
+      const { data, error } = await supabase.from('expenses').select('*').order('date', { ascending: false });
+      if (!error && data) {
+        setExpenses(data);
+      }
+    } catch (err) {}
+  };
+
   useEffect(() => {
     fetchArtists();
     fetchAppointments();
+    fetchExpenses();
 
     const apptChannel = supabase
       .channel('realtime-appointments')
@@ -255,25 +279,36 @@ export default function App() {
       )
       .subscribe();
 
+    const expenseChannel = supabase
+      .channel('realtime-expenses')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'expenses' },
+        () => {
+          fetchExpenses();
+        }
+      )
+      .subscribe();
+
     const interval = setInterval(() => {
       fetchAppointments();
       fetchArtists();
+      fetchExpenses();
     }, 6000);
 
     return () => {
       supabase.removeChannel(apptChannel);
       supabase.removeChannel(artistChannel);
+      supabase.removeChannel(expenseChannel);
       clearInterval(interval);
     };
   }, []);
 
-  // Giriş Yapma (Doğrudan Buluttan Kontrol)
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
     const cleanUser = usernameInput.trim().toLowerCase();
 
-    // Özel Dükkan Sahibi Giriş Koruması (Veritabanında olmasa dahi giriş garantisi)
     if (cleanUser === 'bosside' && passwordInput === 'nautilus081025') {
       const bossObj = { id: 'admin', name: 'Dükkan Sahibi', username: 'bosside', password: 'nautilus081025', role: 'admin', color: '#e6edf3', commission_rate: 0 };
       setCurrentUser(bossObj);
@@ -321,7 +356,6 @@ export default function App() {
     }
   };
 
-  // Kendi Şifresini Değiştirme
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
     setPassMsg('');
@@ -375,7 +409,7 @@ export default function App() {
     }
   };
 
-  // --- DÜKKAN SAHİBİ KULLANICI YÖNETİMİ ---
+  // Kullanıcı Yönetimi
   const openNewUserModal = () => {
     setEditingArtist(null);
     setUserFormData({
@@ -407,7 +441,6 @@ export default function App() {
     const cleanUser = userFormData.username.trim().toLowerCase();
 
     if (editingArtist) {
-      // Güncelle
       const { error } = await supabase.from('artists').update({
         name: userFormData.name,
         username: cleanUser,
@@ -422,7 +455,6 @@ export default function App() {
         return;
       }
     } else {
-      // Yeni Ekle
       const newId = 'art_' + Date.now();
       const { error } = await supabase.from('artists').insert([{
         id: newId,
@@ -452,6 +484,42 @@ export default function App() {
         alert('Silme hatası: ' + error.message);
       } else {
         await fetchArtists();
+      }
+    }
+  };
+
+  // Gider Yönetimi
+  const handleSaveExpense = async (e) => {
+    e.preventDefault();
+    const newExp = {
+      id: 'exp_' + Date.now(),
+      title: expenseFormData.title,
+      amount: Number(expenseFormData.amount) || 0,
+      category: expenseFormData.category,
+      date: expenseFormData.date
+    };
+
+    const { error } = await supabase.from('expenses').insert([newExp]);
+    if (error) {
+      alert('Gider kaydedilemedi: ' + error.message);
+      return;
+    }
+
+    setIsExpenseModalOpen(false);
+    setExpenseFormData({
+      title: '',
+      amount: '',
+      category: 'Sarf Malzeme',
+      date: new Date().toISOString().slice(0, 10)
+    });
+    fetchExpenses();
+  };
+
+  const handleDeleteExpense = async (id) => {
+    if (confirm('Bu gider kaydını silmek istediğinize emin misiniz?')) {
+      const { error } = await supabase.from('expenses').delete().eq('id', id);
+      if (!error) {
+        fetchExpenses();
       }
     }
   };
@@ -506,6 +574,7 @@ export default function App() {
     }
   };
 
+  // WhatsApp Randevu Hatırlatması
   const sendWhatsApp = (appt) => {
     if (!appt.phone) {
       alert('Bu randevuda kayıtlı telefon numarası bulunmuyor.');
@@ -519,6 +588,49 @@ export default function App() {
     const text = `Merhaba ${appt.client_name}, Nautilus Tattoo'da ${appt.date} günü saat ${appt.time ? appt.time.slice(0, 5) : ''}'de ${artistName} ile dövme seansınız planlanmıştır. Randevu saatinden önce tok gelmenizi ve bol su tüketmenizi rica ederiz. Görüşmek üzere!`;
     const url = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
+  };
+
+  // YENİ: WhatsApp Seans Sonrası Bakım (Aftercare) Mesajı
+  const sendAftercareWhatsApp = (appt) => {
+    if (!appt.phone) {
+      alert('Bu randevuda kayıtlı telefon numarası bulunmuyor.');
+      return;
+    }
+    const cleanPhone = appt.phone.replace(/[^0-9]/g, '');
+    const phoneWithCountry = cleanPhone.startsWith('90') ? cleanPhone : (cleanPhone.startsWith('0') ? '9' + cleanPhone : '90' + cleanPhone);
+    const artist = artists.find(a => a.id === appt.artist_id);
+    const artistName = artist ? artist.name : 'Nautilus Tattoo Ekibi';
+
+    const text = `Merhaba ${appt.client_name}, yeni dövmen hayırlı olsun! ✨\n\nNautilus Tattoo & ${artistName} olarak dövmenin en sağlıklı şekilde iyileşmesi için dikkat etmen gereken temel bakım önerileri:\n\n1. Sana takılan koruyucu filmi belirtilen süreden önce çıkarma.\n2. Filmi çıkardıktan sonra dövmeni ılık su ve antibakteriyel sabunla nazikçe yıkayıp temiz bir havlu kağıtla kurula.\n3. İlk 2-3 hafta günde 2-3 kez ince bir tabaka halinde tavsiye edilen bakım kremini uygula.\n4. Tamamen iyileşene kadar dövmeni kaşıma, kabukları soyma; deniz, havuz, sauna ve direkt güneş ışığından uzak tut.\n\nHerhangi bir sorun veya sorun olursa bize her zaman buradan yazabilirsin. Güzel günlerde taşı!`;
+    const url = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
+
+  // YENİ: Tek Tıkla WhatsApp Kasa Özeti Kopyalama / Paylaşma
+  const copyKasaSummary = () => {
+    let summaryText = `📅 Nautilus Tattoo - Stüdyo Kasa & Hakediş Raporu\n`;
+    summaryText += `--------------------------------\n`;
+    
+    artists.filter(a => a.role !== 'admin').forEach(art => {
+      const aAppts = appointments.filter(a => a.artist_id === art.id);
+      const rev = aAppts.reduce((acc, a) => acc + Number(a.price || 0), 0);
+      const cut = rev * (art.commission_rate / 100);
+      const artistCut = rev - cut;
+      summaryText += `• ${art.name}: ${aAppts.length} Seans | Ciro: ${rev.toLocaleString('tr-TR')} ₺ | Hakediş: ${artistCut.toLocaleString('tr-TR')} ₺\n`;
+    });
+
+    summaryText += `--------------------------------\n`;
+    summaryText += `💰 Toplam Ciro: ${allRevenue.toLocaleString('tr-TR')} ₺\n`;
+    summaryText += `📥 Alınan Kaporalar: ${allDeposits.toLocaleString('tr-TR')} ₺\n`;
+    summaryText += `💸 Ortak Giderler: ${totalExpenses.toLocaleString('tr-TR')} ₺\n`;
+    summaryText += `🏛️ Net Dükkan Kârı: ${netStudioFinalProfit.toLocaleString('tr-TR')} ₺\n`;
+
+    navigator.clipboard.writeText(summaryText);
+    setCopiedSummary(true);
+    setTimeout(() => setCopiedSummary(false), 2500);
+
+    const shareUrl = `https://wa.me/?text=${encodeURIComponent(summaryText)}`;
+    window.open(shareUrl, '_blank');
   };
 
   const openNewModal = (defaultDate = null) => {
@@ -570,11 +682,14 @@ export default function App() {
 
   const allRevenue = appointments.reduce((acc, a) => acc + Number(a.price || 0), 0);
   const allDeposits = appointments.reduce((acc, a) => acc + Number(a.deposit || 0), 0);
-  const studioNetProfit = appointments.reduce((acc, a) => {
+  const studioGrossProfit = appointments.reduce((acc, a) => {
     const art = artists.find(i => i.id === a.artist_id);
     const r = art ? art.commission_rate : 50;
     return acc + (Number(a.price || 0) * (r / 100));
   }, 0);
+
+  const totalExpenses = expenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
+  const netStudioFinalProfit = studioGrossProfit - totalExpenses;
 
   if (!currentUser) {
     return (
@@ -663,7 +778,7 @@ export default function App() {
         </button>
         {isSuperAdmin && (
           <button onClick={() => setActiveTab('admin_panel')} style={{ padding: '12px 2px', borderBottom: activeTab === 'admin_panel' ? `2px solid ${accentColor}` : '2px solid transparent', color: activeTab === 'admin_panel' ? (currentTheme.isLight ? currentTheme.text : accentColor) : currentTheme.muted, fontWeight: 700, fontSize: '13px', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}>
-            Dükkan Masası & Ekip
+            Dükkan Masası & Kasa
           </button>
         )}
       </div>
@@ -816,10 +931,16 @@ export default function App() {
                             <div style={{ fontSize: '12px', color: currentTheme.muted }}>Bölge: <span style={{ color: currentTheme.text }}>{appt.body_part}</span></div>
                           </div>
 
+                          {/* İkili WhatsApp Butonları: 1. Randevu Hatırlatma, 2. Seans Sonrası Bakım */}
                           {appt.phone && (
-                            <button onClick={() => sendWhatsApp(appt)} style={{ backgroundColor: '#238636', color: '#ffffff', border: 'none', borderRadius: '10px', padding: '6px 10px', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                              <MessageCircle size={14} /> WhatsApp
-                            </button>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button onClick={() => sendWhatsApp(appt)} title="Randevu Onayı / Hatırlatma Gönder" style={{ backgroundColor: '#238636', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '6px 8px', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                <MessageCircle size={13} /> Onay
+                              </button>
+                              <button onClick={() => sendAftercareWhatsApp(appt)} title="Seans Sonrası Dövme Bakım Rehberi Gönder" style={{ backgroundColor: '#1f6feb', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '6px 8px', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                <Sparkles size={13} /> Bakım
+                              </button>
+                            </div>
                           )}
                         </div>
 
@@ -1018,21 +1139,77 @@ export default function App() {
           </div>
         )}
 
-        {/* DÜKKAN SAHİBİ MASASI & EKİP YÖNETİMİ */}
+        {/* DÜKKAN SAHİBİ MASASI & KASA YÖNETİMİ */}
         {activeTab === 'admin_panel' && isSuperAdmin && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
+            
+            {/* Kasa Finans Kartları (Ciro, Kapora, Giderler, Net Kâr) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
                 <span style={{ fontSize: '11px', color: currentTheme.muted, textTransform: 'uppercase' }}>Stüdyo Toplam Ciro</span>
-                <h3 style={{ fontSize: '20px', fontWeight: 700, margin: '6px 0 0 0', color: currentTheme.text }}>{allRevenue.toLocaleString('tr-TR')} ₺</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '6px 0 0 0', color: currentTheme.text }}>{allRevenue.toLocaleString('tr-TR')} ₺</h3>
               </div>
-              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
+              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
                 <span style={{ fontSize: '11px', color: currentTheme.muted, textTransform: 'uppercase' }}>Toplanan Kapora</span>
-                <h3 style={{ fontSize: '20px', fontWeight: 700, margin: '6px 0 0 0', color: '#059669' }}>{allDeposits.toLocaleString('tr-TR')} ₺</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '6px 0 0 0', color: '#059669' }}>{allDeposits.toLocaleString('tr-TR')} ₺</h3>
+              </div>
+              <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
+                <span style={{ fontSize: '11px', color: currentTheme.muted, textTransform: 'uppercase' }}>Ortak Giderler</span>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '6px 0 0 0', color: '#f85149' }}>{totalExpenses.toLocaleString('tr-TR')} ₺</h3>
+              </div>
+              <div style={{ backgroundColor: currentTheme.card, border: '1px solid #10b981', borderRadius: '16px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
+                <span style={{ fontSize: '11px', color: '#059669', textTransform: 'uppercase', fontWeight: 700 }}>Net Stüdyo Kârı</span>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '6px 0 0 0', color: '#059669' }}>{netStudioFinalProfit.toLocaleString('tr-TR')} ₺</h3>
               </div>
             </div>
 
-            {/* YENİ: EKİP VE KULLANICI YÖNETİM MODÜLÜ */}
+            {/* TEK TIKLA WHATSAPP KASA VE HAKEDİŞ ÖZETİ BUTONU */}
+            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: currentTheme.text }}>Haftalık Kasa & Hakediş Raporu</h4>
+                <p style={{ fontSize: '12px', color: currentTheme.muted, margin: '2px 0 0 0' }}>Tek tıkla tüm sanatçıların seanslarını ve kasa durumunu WhatsApp'a aktar.</p>
+              </div>
+              <button onClick={copyKasaSummary} style={{ backgroundColor: '#238636', color: '#ffffff', border: 'none', borderRadius: '10px', padding: '8px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                <Share2 size={15} /> {copiedSummary ? 'Kopyalandı & Açılıyor!' : 'WhatsApp Raporu'}
+              </button>
+            </div>
+
+            {/* ORTAK GİDER / MASRAF TAKİP MODÜLÜ */}
+            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Receipt size={18} style={{ color: '#f85149' }} />
+                  <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: currentTheme.text }}>Ortak Giderler & Sarf Malzeme ({expenses.length})</h4>
+                </div>
+                <button onClick={() => setIsExpenseModalOpen(true)} style={{ backgroundColor: currentTheme.subCard, color: currentTheme.text, border: `1px solid ${currentTheme.border}`, borderRadius: '10px', padding: '6px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Plus size={14} /> Gider Ekle
+                </button>
+              </div>
+
+              {expenses.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '18px', color: currentTheme.muted, fontSize: '12px' }}>Henüz kaydedilmiş bir gider bulunmuyor.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {expenses.slice(0, 5).map(exp => (
+                    <div key={exp.id} style={{ backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '10px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: currentTheme.text }}>{exp.title}</div>
+                        <div style={{ fontSize: '11px', color: currentTheme.muted }}>{exp.category} • {exp.date}</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontWeight: 700, color: '#f85149', fontSize: '13px' }}>-{Number(exp.amount).toLocaleString('tr-TR')} ₺</span>
+                        <button onClick={() => handleDeleteExpense(exp.id)} style={{ background: 'none', border: 'none', color: '#f85149', cursor: 'pointer', padding: 0 }}><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  ))}
+                  {expenses.length > 5 && (
+                    <span style={{ fontSize: '11px', color: currentTheme.muted, textAlign: 'center' }}>+ {expenses.length - 5} daha fazla gider kaydı mevcut</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* EKİP VE KULLANICI YÖNETİM MODÜLÜ */}
             <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', padding: '16px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1111,6 +1288,44 @@ export default function App() {
         )}
 
       </main>
+
+      {/* GİDER EKLEME MODAL */}
+      {isExpenseModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 120 }}>
+          <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', width: '100%', maxWidth: '360px', padding: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 12px 0', color: currentTheme.text }}>Yeni Ortak Gider Ekle</h3>
+            <form onSubmit={handleSaveExpense} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Gider Başlığı</label>
+                <input type="text" required placeholder="örn: İğne & Boya Siparişi, Kahve Çekirdeği" value={expenseFormData.title} onChange={e => setExpenseFormData({ ...expenseFormData, title: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Tutar (₺)</label>
+                  <input type="number" required placeholder="1250" value={expenseFormData.amount} onChange={e => setExpenseFormData({ ...expenseFormData, amount: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Kategori</label>
+                  <select value={expenseFormData.category} onChange={e => setExpenseFormData({ ...expenseFormData, category: e.target.value })} style={{ width: '100%', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }}>
+                    <option value="Sarf Malzeme">Sarf Malzeme</option>
+                    <option value="Dükkan Gideri">Dükkan Gideri</option>
+                    <option value="Kahve & İkram">Kahve & İkram</option>
+                    <option value="Diğer">Diğer</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Tarih</label>
+                <input type="date" required value={expenseFormData.date} onChange={e => setExpenseFormData({ ...expenseFormData, date: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setIsExpenseModalOpen(false)} style={{ backgroundColor: currentTheme.subCard, border: 'none', color: currentTheme.muted, padding: '8px 14px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>İptal</button>
+                <button type="submit" style={{ backgroundColor: '#f85149', border: 'none', color: '#ffffff', fontWeight: 700, padding: '8px 16px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>Gideri Kaydet</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* KULLANICI EKLE / DÜZENLE MODAL (DÜKKAN SAHİBİ İÇİN) */}
       {isUserModalOpen && (
