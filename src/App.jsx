@@ -94,8 +94,18 @@ const ACCENT_COLORS = [
   { name: 'Amber', darkVal: '#f59e0b', lightVal: '#d97706', textDark: '#0d1117', textLight: '#ffffff' }
 ];
 
+const FALLBACK_ARTISTS = [
+  { id: 'admin', name: 'Dükkan Sahibi', username: 'bosside', password: 'nautilus081025', role: 'admin', color: '#e6edf3', commission_rate: 0 },
+  { id: 'art1', name: 'Ege Can', username: 'egecan', password: 'egecan123', role: 'artist', color: '#10b981', commission_rate: 50 },
+  { id: 'art2', name: 'Yasin', username: 'yasin', password: 'yasin123', role: 'artist', color: '#3b82f6', commission_rate: 30 },
+  { id: 'art3', name: 'Asil', username: 'asil', password: 'asil123', role: 'artist', color: '#f43f5e', commission_rate: 50 },
+  { id: 'art4', name: 'Yeşim', username: 'yesim', password: 'yesim123', role: 'artist', color: '#a78bfa', commission_rate: 30 },
+  { id: 'art5', name: 'Oğuz', username: 'oguz', password: 'oguz123', role: 'artist', color: '#2dd4bf', commission_rate: 50 },
+  { id: 'art6', name: 'Aylin', username: 'aylin', password: 'aylin123', role: 'artist', color: '#f59e0b', commission_rate: 60 }
+];
+
 export default function App() {
-  const [artists, setArtists] = useState([]);
+  const [artists, setArtists] = useState(FALLBACK_ARTISTS);
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('nautilus_active_session_v9');
@@ -1393,21 +1403,23 @@ export default function App() {
           <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '18px', width: '100%', maxWidth: '380px', padding: '20px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
             <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 12px 0', color: currentTheme.text }}>{selectedAppt ? 'Randevuyu Düzenle' : 'Yeni Randevu Ekle'}</h3>
             <form onSubmit={handleSaveAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {isSuperAdmin && (
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Sanatçı</label>
-                  <select 
-                    value={formData.artist_id || ''} 
-                    onChange={e => setFormData({ ...formData, artist_id: e.target.value })} 
-                    style={{ width: '100%', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }}
-                  >
-                    <option value="" disabled>Sanatçı Seçiniz</option>
-                    {artists.filter(a => a.role !== 'admin').map(art => (
-                      <option key={art.id} value={art.id}>{art.name}</option>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Sanatçı</label>
+                <select 
+                  value={formData.artist_id || ''} 
+                  onChange={e => setFormData({ ...formData, artist_id: e.target.value })} 
+                  style={{ width: '100%', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }}
+                >
+                  <option value="" disabled>Sanatçı Seçiniz</option>
+                  {(artists && artists.length > 0 ? artists : FALLBACK_ARTISTS)
+                    .filter(a => a.id !== 'admin' && a.role !== 'admin')
+                    .map(art => (
+                      <option key={art.id} value={art.id}>
+                        {art.name}
+                      </option>
                     ))}
-                  </select>
-                </div>
-              )}
+                </select>
+              </div>
               <div>
                 <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Müşteri Adı</label>
                 <input type="text" required value={formData.client_name} onChange={e => setFormData({ ...formData, client_name: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }} />
