@@ -125,6 +125,12 @@ export default function App() {
     return saved !== null ? Number(saved) : 0;
   });
 
+    // Finans Tablosu Ay Filtresi
+  const [financeMonthFilter, setFinanceMonthFilter] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
   const [calendarViewMode, setCalendarViewMode] = useState(() => {
     return localStorage.getItem('nautilus_calendar_view') || 'compact';
   });
@@ -618,11 +624,12 @@ export default function App() {
 
   // YENİ: Tek Tıkla WhatsApp Kasa Özeti Kopyalama / Paylaşma
   const copyKasaSummary = () => {
-    let summaryText = `📅 Nautilus Tattoo - Stüdyo Kasa & Hakediş Raporu\n`;
+    const monthLabel = financeMonthFilter === 'all' ? 'Tüm Zamanlar' : `${MONTH_NAMES[parseInt(financeMonthFilter.split('-')[1], 10) - 1]} ${financeMonthFilter.split('-')[0]}`;
+    let summaryText = `📅 Nautilus Tattoo - Kasa & Hakediş Raporu (${monthLabel})\n`;
     summaryText += `--------------------------------\n`;
     
     artists.filter(a => a.role !== 'admin').forEach(art => {
-      const aAppts = appointments.filter(a => a.artist_id === art.id);
+      const aAppts = filteredAppointmentsByMonth.filter(a => a.artist_id === art.id);
       const rev = aAppts.reduce((acc, a) => acc + Number(a.price || 0), 0);
       const cut = rev * (art.commission_rate / 100);
       const artistCut = rev - cut;
@@ -691,15 +698,26 @@ export default function App() {
   const myRate = currentUser?.commission_rate || 50;
   const myCut = myRevenue - (myRevenue * (myRate / 100));
 
-  const allRevenue = appointments.reduce((acc, a) => acc + Number(a.price || 0), 0);
-  const allDeposits = appointments.reduce((acc, a) => acc + Number(a.deposit || 0), 0);
-  const studioGrossProfit = appointments.reduce((acc, a) => {
+  // Seçili Aya Göre Filtrelenmiş Randevular ve Giderler
+  const filteredAppointmentsByMonth = appointments.filter(a => {
+    if (financeMonthFilter === 'all') return true;
+    return a.date && a.date.startsWith(financeMonthFilter);
+  });
+
+  const filteredExpensesByMonth = expenses.filter(e => {
+    if (financeMonthFilter === 'all') return true;
+    return e.date && e.date.startsWith(financeMonthFilter);
+  });
+
+  const allRevenue = filteredAppointmentsByMonth.reduce((acc, a) => acc + Number(a.price || 0), 0);
+  const allDeposits = filteredAppointmentsByMonth.reduce((acc, a) => acc + Number(a.deposit || 0), 0);
+  const studioGrossProfit = filteredAppointmentsByMonth.reduce((acc, a) => {
     const art = artists.find(i => i.id === a.artist_id);
     const r = art ? art.commission_rate : 50;
     return acc + (Number(a.price || 0) * (r / 100));
   }, 0);
 
-  const totalExpenses = expenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
+  const totalExpenses = filteredExpensesByMonth.reduce((acc, e) => acc + Number(e.amount || 0), 0);
   const netStudioFinalProfit = studioGrossProfit - totalExpenses;
 
   if (!currentUser) {
@@ -1159,6 +1177,47 @@ export default function App() {
         {activeTab === 'admin_panel' && isSuperAdmin && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             
+            {/* Ay Filtresi Seçim Barı */}
+            <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: currentTheme.text }}>Dönem Seçimi:</span>
+                <input 
+                  type="month" 
+                  value={financeMonthFilter === 'all' ? '' : financeMonthFilter} 
+                  onChange={e => setFinanceMonthFilter(e.target.value || 'all')} 
+                  style={{ backgroundColor: currentTheme.bg, color: currentTheme.text, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '6px 10px', fontSize: '12px', fontWeight: 600, outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button 
+                  onClick={() => {
+                    const now = new Date();
+                    setFinanceMonthFilter(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+                  }} 
+                  style={{ backgroundColor: currentTheme.subCard, color: currentTheme.text, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '6px 10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Bu Ay
+                </button>
+                <button 
+                  onClick={() => {
+                    const now = new Date();
+                    now.setMonth(now.getMonth() - 1);
+                    setFinanceMonthFilter(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+                  }} 
+                  style={{ backgroundColor: currentTheme.subCard, color: currentTheme.text, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '6px 10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Geçen Ay
+                </button>
+                <button 
+                  onClick={() => setFinanceMonthFilter('all')} 
+                  style={{ backgroundColor: financeMonthFilter === 'all' ? accentColor : currentTheme.subCard, color: financeMonthFilter === 'all' ? accentTextColor : currentTheme.text, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '6px 10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Tüm Zamanlar
+                </button>
+              </div>
+            </div>
+
             {/* Kasa Finans Kartları (Ciro, Kapora, Giderler, Net Kâr) */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
               <div style={{ backgroundColor: currentTheme.card, border: `1px solid ${currentTheme.border}`, borderRadius: '16px', padding: '14px', boxShadow: currentTheme.isLight ? '0 2px 8px rgba(0,0,0,0.02)' : 'none' }}>
@@ -1195,18 +1254,18 @@ export default function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Receipt size={18} style={{ color: '#f85149' }} />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: currentTheme.text }}>Ortak Giderler & Sarf Malzeme ({expenses.length})</h4>
+                  <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: currentTheme.text }}>Ortak Giderler & Sarf Malzeme ({filteredExpensesByMonth.length})</h4>
                 </div>
                 <button onClick={() => setIsExpenseModalOpen(true)} style={{ backgroundColor: currentTheme.subCard, color: currentTheme.text, border: `1px solid ${currentTheme.border}`, borderRadius: '10px', padding: '6px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Plus size={14} /> Gider Ekle
                 </button>
               </div>
 
-              {expenses.length === 0 ? (
+              {filteredExpensesByMonth.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '18px', color: currentTheme.muted, fontSize: '12px' }}>Henüz kaydedilmiş bir gider bulunmuyor.</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {expenses.slice(0, 5).map(exp => (
+                  {filteredExpensesByMonth.slice(0, 8).map(exp => (
                     <div key={exp.id} style={{ backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '10px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: '13px', color: currentTheme.text }}>{exp.title}</div>
@@ -1218,8 +1277,8 @@ export default function App() {
                       </div>
                     </div>
                   ))}
-                  {expenses.length > 5 && (
-                    <span style={{ fontSize: '11px', color: currentTheme.muted, textAlign: 'center' }}>+ {expenses.length - 5} daha fazla gider kaydı mevcut</span>
+                  {filteredExpensesByMonth.length > 8 && (
+                    <span style={{ fontSize: '11px', color: currentTheme.muted, textAlign: 'center' }}>+ {filteredExpensesByMonth.length - 8} daha fazla gider kaydı mevcut</span>
                   )}
                 </div>
               )}
@@ -1283,7 +1342,7 @@ export default function App() {
                   </thead>
                   <tbody>
                     {artists.filter(a => a.role !== 'admin').map(art => {
-                      const aAppts = appointments.filter(a => a.artist_id === art.id);
+                      const aAppts = filteredAppointmentsByMonth.filter(a => a.artist_id === art.id);
                       const rev = aAppts.reduce((acc, a) => acc + Number(a.price || 0), 0);
                       const cut = rev * (art.commission_rate / 100);
                       return (
