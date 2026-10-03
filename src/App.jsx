@@ -656,6 +656,7 @@ export default function App() {
     setSelectedAppt(appt);
     setFormData({
       ...appt,
+      artist_id: appt.artist_id || (artists.find(a => a.role !== 'admin')?.id || 'art1'),
       phone: appt.phone || '',
       deposit: appt.deposit || 0,
       payment_status: appt.payment_status || 'pending'
@@ -1395,7 +1396,12 @@ export default function App() {
               {isSuperAdmin && (
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', color: currentTheme.muted, marginBottom: '4px' }}>Sanatçı</label>
-                  <select value={formData.artist_id} onChange={e => setFormData({ ...formData, artist_id: e.target.value })} style={{ width: '100%', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }}>
+                  <select 
+                    value={formData.artist_id || ''} 
+                    onChange={e => setFormData({ ...formData, artist_id: e.target.value })} 
+                    style={{ width: '100%', backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderRadius: '8px', padding: '8px', color: currentTheme.text, fontSize: '13px' }}
+                  >
+                    <option value="" disabled>Sanatçı Seçiniz</option>
                     {artists.filter(a => a.role !== 'admin').map(art => (
                       <option key={art.id} value={art.id}>{art.name}</option>
                     ))}
