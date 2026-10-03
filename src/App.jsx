@@ -574,7 +574,7 @@ export default function App() {
     }
   };
 
-  // WhatsApp Randevu Hatırlatması
+  // WhatsApp Randevu Hatırlatması (Sanatçı İmzalı)
   const sendWhatsApp = (appt) => {
     if (!appt.phone) {
       alert('Bu randevuda kayıtlı telefon numarası bulunmuyor.');
@@ -583,14 +583,14 @@ export default function App() {
     const cleanPhone = appt.phone.replace(/[^0-9]/g, '');
     const phoneWithCountry = cleanPhone.startsWith('90') ? cleanPhone : (cleanPhone.startsWith('0') ? '9' + cleanPhone : '90' + cleanPhone);
     const artist = artists.find(a => a.id === appt.artist_id);
-    const artistName = artist ? artist.name : 'Nautilus Tattoo Ekibi';
+    const senderName = artist ? artist.name : (currentUser ? currentUser.name : 'Sanatçınız');
 
-    const text = `Merhaba ${appt.client_name}, Nautilus Tattoo'da ${appt.date} günü saat ${appt.time ? appt.time.slice(0, 5) : ''}'de ${artistName} ile dövme seansınız planlanmıştır. Randevu saatinden önce tok gelmenizi ve bol su tüketmenizi rica ederiz. Görüşmek üzere!`;
+    const text = `Merhaba ${appt.client_name}, ${appt.date} günü saat ${appt.time ? appt.time.slice(0, 5) : ''}'te benimle (${senderName}) Nautilus Tattoo'daki dövme seansınız planlanmıştır. Seans saatinden önce iyi dinlenmiş ve tok gelmenizi, bol su tüketmenizi rica ederim. Görüşmek üzere!`;
     const url = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
   };
 
-  // YENİ: WhatsApp Seans Sonrası Bakım (Aftercare) Mesajı
+  // WhatsApp Seans Sonrası Bakım (Aftercare) Mesajı (Sanatçı İmzalı)
   const sendAftercareWhatsApp = (appt) => {
     if (!appt.phone) {
       alert('Bu randevuda kayıtlı telefon numarası bulunmuyor.');
@@ -599,9 +599,9 @@ export default function App() {
     const cleanPhone = appt.phone.replace(/[^0-9]/g, '');
     const phoneWithCountry = cleanPhone.startsWith('90') ? cleanPhone : (cleanPhone.startsWith('0') ? '9' + cleanPhone : '90' + cleanPhone);
     const artist = artists.find(a => a.id === appt.artist_id);
-    const artistName = artist ? artist.name : 'Nautilus Tattoo Ekibi';
+    const senderName = artist ? artist.name : (currentUser ? currentUser.name : 'Sanatçınız');
 
-    const text = `Merhaba ${appt.client_name}, yeni dövmen hayırlı olsun! ✨\n\nNautilus Tattoo & ${artistName} olarak dövmenin en sağlıklı şekilde iyileşmesi için dikkat etmen gereken temel bakım önerileri:\n\n1. Sana takılan koruyucu filmi belirtilen süreden önce çıkarma.\n2. Filmi çıkardıktan sonra dövmeni ılık su ve antibakteriyel sabunla nazikçe yıkayıp temiz bir havlu kağıtla kurula.\n3. İlk 2-3 hafta günde 2-3 kez ince bir tabaka halinde tavsiye edilen bakım kremini uygula.\n4. Tamamen iyileşene kadar dövmeni kaşıma, kabukları soyma; deniz, havuz, sauna ve direkt güneş ışığından uzak tut.\n\nHerhangi bir sorun veya sorun olursa bize her zaman buradan yazabilirsin. Güzel günlerde taşı!`;
+    const text = `Merhaba ${appt.client_name}, yeni dövmen hayırlı olsun! ✨\n\nBen ${senderName}. Dövmenin en kusursuz ve sağlıklı şekilde iyileşmesi için dikkat etmeni istediğim adımlar:\n\n1. Taktığımız koruyucu filmi belirttiğim süreden önce kesinlikle çıkarma.\n2. Filmi çıkardıktan sonra dövmeni ılık su ve antibakteriyel sabunla nazikçe yıkayıp temiz bir havlu kağıtla tamponlayarak kurula.\n3. İlk 2-3 hafta günde 2-3 kez ince bir tabaka halinde önerdiğim bakım kremini uygula.\n4. Tamamen iyileşene kadar dövmeni kaşıma, kabukları soyma; deniz, havuz, sauna ve direkt güneş ışığından koru.\n\nİyileşme sürecinde aklına takılan her şeyi bana buradan doğrudan iletebilirsin. Güzel günlerde taşı!`;
     const url = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
   };
@@ -921,7 +921,12 @@ export default function App() {
                     return (
                       <div key={appt.id} style={{ backgroundColor: currentTheme.bg, border: `1px solid ${currentTheme.border}`, borderLeft: `4px solid ${art?.color || currentTheme.muted}`, borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '12px', color: art?.color, fontWeight: 700 }}>{art?.name}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: art?.color || '#10b981' }}></span>
+                            <span style={{ fontSize: '12px', color: art?.color || currentTheme.text, fontWeight: 700 }}>
+                              {art?.name || 'Sanatçı Belirtilmedi'}
+                            </span>
+                          </div>
                           <span style={{ fontSize: '12px', color: currentTheme.muted, display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> {appt.time ? appt.time.slice(0, 5) : ''}</span>
                         </div>
 
