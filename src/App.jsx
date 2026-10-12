@@ -101,7 +101,8 @@ const FALLBACK_ARTISTS = [
   { id: 'art3', name: 'Asil', username: 'asil', password: 'asil123', role: 'artist', color: '#f43f5e', commission_rate: 50 },
   { id: 'art4', name: 'Yeşim', username: 'yesim', password: 'yesim123', role: 'artist', color: '#a78bfa', commission_rate: 30 },
   { id: 'art5', name: 'Oğuz', username: 'oguz', password: 'oguz123', role: 'artist', color: '#2dd4bf', commission_rate: 50 },
-  { id: 'art6', name: 'Aylin', username: 'aylin', password: 'aylin123', role: 'artist', color: '#f59e0b', commission_rate: 60 }
+  { id: 'art6', name: 'Aylin', username: 'aylin', password: 'aylin123', role: 'artist', color: '#f59e0b', commission_rate: 60 },
+  { id: 'art_merve', name: 'Merve', username: 'merve', password: 'merve123', role: 'artist', color: '#ec4899', commission_rate: 30 }
 ];
 
 export default function App() {
@@ -187,7 +188,7 @@ export default function App() {
     artist_id: '',
     client_name: '',
     phone: '',
-    date: '2026-10-01',
+    date: new Date().toISOString().slice(0, 10),
     time: '14:00',
     body_part: 'Ön Kol',
     price: 3500,
